@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email']);
         $password = $_POST['password'];
 
-        $stmt = $pdo->prepare("SELECT id, username, password, groupe FROM users WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT id, username, password, groupe FROM user WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($username) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($password)) {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
             try {
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password, groupe) VALUES (?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO user (username, email, password, groupe) VALUES (?, ?, ?, ?)");
                 $stmt->execute([$username, $email, $hashed_password, $groupe]);
 
                 // Connexion automatique après inscription
