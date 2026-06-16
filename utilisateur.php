@@ -21,6 +21,10 @@ try {
         // Pour la carte G7C, on extrait l'ensemble des points sans "LIMIT" strict pour alimenter l'historique du slider
         $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $mesures = $stmt->fetchAll();
+    } elseif ($view_group === 'E') {
+        // Chargement de la table de stockage MinIO du groupe E (Remplacer 'measures_g7e' par le nom réel de leur table si différent)
+        $stmt = $pdo->query("SELECT * FROM measures_g7e ORDER BY uploadedAt DESC LIMIT 50");
+        $mesures = $stmt->fetchAll();
     }
 } catch (\PDOException $e) {
     $db_error = "Erreur BDD : " . $e->getMessage();
@@ -40,6 +44,8 @@ include 'header.php';
             (Recul)</a>
         <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">Groupe G7C (Votre
             GPS/Ultrason)</a>
+        <a href="utilisateur.php?show=E" class="tab-btn <?= $view_group === 'E' ? 'active' : '' ?>">Groupe G7E (Serveur
+            MinIO)</a>
     </div>
 
     <?php if (isset($db_error)): ?>
@@ -56,7 +62,7 @@ include 'header.php';
                     <th>Valeur</th>
                     <th>Danger</th>
                 </tr>
-                    <?php foreach ($mesures as $m): ?>
+                <?php foreach ($mesures as $m): ?>
                     <tr>
                         <td><?= $m['created_at'] ?></td>
                         <td><?= htmlspecialchars($m['gas_type']) ?></td>
@@ -64,11 +70,11 @@ include 'header.php';
                         <td>
                             <span class="badge"
                                 style="background: <?= $m['danger_level'] == '0' ? 'var(--success)' : 'var(--danger)' ?>;">
-                                    <?= $m['danger_level'] == '0' ? 'Normal' : 'Danger' ?>
+                                <?= $m['danger_level'] == '0' ? 'Normal' : 'Danger' ?>
                             </span>
                         </td>
                     </tr>
-                    <?php endforeach; ?>
+                <?php endforeach; ?>
             </table>
         </div>
 
@@ -82,7 +88,7 @@ include 'header.php';
                     <th>Distance</th>
                     <th>Statut</th>
                 </tr>
-                    <?php foreach ($mesures as $m): ?>
+                <?php foreach ($mesures as $m): ?>
                     <tr>
                         <td><?= $m['date_evenement'] ?></td>
                         <td><?= $m['valeur_brute'] ?></td>
@@ -90,11 +96,11 @@ include 'header.php';
                         <td>
                             <span class="badge"
                                 style="background: <?= $m['statut'] === 'alerte collision' ? 'var(--danger)' : 'var(--primary)' ?>;">
-                                    <?= htmlspecialchars($m['statut']) ?>
+                                <?= htmlspecialchars($m['statut']) ?>
                             </span>
                         </td>
                     </tr>
-                    <?php endforeach; ?>
+                <?php endforeach; ?>
             </table>
         </div>
 
@@ -123,14 +129,14 @@ include 'header.php';
                     <th>Humidité</th>
                     <th>Altitude</th>
                 </tr>
-                    <?php foreach (array_slice($mesures, 0, 15) as $m): ?>
+                <?php foreach (array_slice($mesures, 0, 15) as $m): ?>
                     <tr>
                         <td><?= $m['date_enregistrement'] ?></td>
                         <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
                         <td><?= $m['humidite_pourcent'] ?> %</td>
                         <td><?= $m['altitude'] ?> m</td>
                     </tr>
-                    <?php endforeach; ?>
+                <?php endforeach; ?>
             </table>
         </div>
 
@@ -200,31 +206,53 @@ include 'header.php';
                 updateMapTracking(rawData.length - 1);
             }
         </script>
-    
+
     <?php elseif ($view_group === 'E'): ?>
-    <h3>Flux de Données — Équipe G7E</h3>
-    <div class="table-responsive">
-        <table>
-            <tr>
-                <th>Date</th>
-                <th>Capteur</th>
-                <th>Valeur</th>
-                <th>Statut</th>
-            </tr>
-            <?php foreach ($mesures as $m): ?>
-            <tr>
-                <td><?= $m['date_enregistrement'] ?></td>
-                <td><?= htmlspecialchars($m['type_capteur']) ?></td>
-                <td><?= $m['valeur_mesuree'] ?></td>
-                <td>
-                    <span class="badge" style="background: <?= $m['statut'] === 'Normal' ? 'var(--success)' : 'var(--danger)' ?>;">
-                        <?= htmlspecialchars($m['statut']) ?>
-                    </span>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </table>
-    </div>
+        <h3>Fichiers Multimédias Archivés — Stockage Cloud MinIO</h3>
+        <p>Ce module liste les documents binaires capturés et téléversés vers l'instance de stockage distribuée du groupe E.
+        </p>
+
+        <div class="table-responsive">
+            <table>
+                <tr>
+                    <th>Date d'envoi</th>
+                    <th>Nom du Fichier</th>
+                    <th>Bucket MinIO</th>
+                    <th>Chemin d'accès (Path)</th>
+                    <th>Taille</th>
+                    <th>Durée</th>
+                </tr>
+                <?php foreach ($mesures as $m): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($m['uploadedAt']) ?></td>
+                        <td><strong>📁 <?= htmlspecialchars($m['filename']) ?></strong></td>
+                        <td><span class="badge" style="background: #4f46e5;"><?= htmlspecialchars($m['minioBucket']) ?></span>
+                        </td>
+                        <td><code
+                                style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; color: #0f172a;"><?= htmlspecialchars($m['minioPath']) ?></code>
+                        </td>
+                        <td>
+                            <?php
+                            // Conversion propre de la taille de octets vers Mo
+                            $sizeInMb = $m['fileSize'] ? round($m['fileSize'] / (1024 * 1024), 2) : 0;
+                            echo $sizeInMb . " Mo";
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            if ($m['duration']) {
+                                $min = floor($m['duration'] / 60);
+                                $sec = $m['duration'] % 60;
+                                echo sprintf("%02d:%02d min", $min, $sec);
+                            } else {
+                                echo "--";
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
 
     <?php else: ?>
         <div style="background: #e9ecef; padding: 30px; text-align: center; border-radius: 6px; color: #6c757d;">
@@ -233,8 +261,6 @@ include 'header.php';
                 au serveur d'affichage global.</p>
         </div>
     <?php endif; ?>
-
-    
 </div>
 
 <?php

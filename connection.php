@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = trim($_POST['username']);
         $email = trim($_POST['email']);
         $password = $_POST['password'];
-        $groupe = $_POST['groupe']; // A, B, C, D, E ou F
+        $groupe = $_POST['groupe']; // A, B, C, D, E 
 
         if (!empty($username) && filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($password)) {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -114,7 +114,6 @@ include 'header.php';
                     <option value="C" selected>Groupe G7C (Ultrason & GPS - Votre Projet)</option>
                     <option value="D">Groupe G7D</option>
                     <option value="E">Groupe G7E</option>
-                    <option value="F">Groupe G7F</option>
                 </select>
             </div>
             <button type="submit" name="action_register" class="btn"
