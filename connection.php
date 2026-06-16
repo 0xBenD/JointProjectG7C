@@ -75,7 +75,7 @@ include 'header.php';
     </div>
 <?php endif; ?>
 
-<div style="display: flex; gap: 50px; justify-content: space-around; flex-wrap: wrap;">
+<div class="auth-grid">
     <div style="flex: 1; min-width: 300px;">
         <h3>Déjà inscrit ? Connexion</h3>
         <form method="POST" action="">

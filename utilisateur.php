@@ -48,51 +48,55 @@ include 'header.php';
 
     <?php if ($view_group === 'A'): ?>
         <h3>Données Capteur de Gaz (MQ135)</h3>
-        <table>
-            <tr>
-                <th>Date</th>
-                <th>Type Gaz</th>
-                <th>Valeur</th>
-                <th>Danger</th>
-            </tr>
-            <?php foreach ($mesures as $m): ?>
+        <div class="table-responsive">
+            <table>
                 <tr>
-                    <td><?= $m['created_at'] ?></td>
-                    <td><?= htmlspecialchars($m['gas_type']) ?></td>
-                    <td><?= $m['gas_value'] ?> ppm</td>
-                    <td>
-                        <span class="badge"
-                            style="background: <?= $m['danger_level'] == '0' ? 'var(--success)' : 'var(--danger)' ?>;">
-                            <?= $m['danger_level'] == '0' ? 'Normal' : 'Danger' ?>
-                        </span>
-                    </td>
+                    <th>Date</th>
+                    <th>Type Gaz</th>
+                    <th>Valeur</th>
+                    <th>Danger</th>
                 </tr>
-            <?php endforeach; ?>
-        </table>
+                    <?php foreach ($mesures as $m): ?>
+                    <tr>
+                        <td><?= $m['created_at'] ?></td>
+                        <td><?= htmlspecialchars($m['gas_type']) ?></td>
+                        <td><?= $m['gas_value'] ?> ppm</td>
+                        <td>
+                            <span class="badge"
+                                style="background: <?= $m['danger_level'] == '0' ? 'var(--success)' : 'var(--danger)' ?>;">
+                                    <?= $m['danger_level'] == '0' ? 'Normal' : 'Danger' ?>
+                            </span>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+            </table>
+        </div>
 
     <?php elseif ($view_group === 'B'): ?>
         <h3>Flux Télémétrique — Capteur de Recul</h3>
-        <table>
-            <tr>
-                <th>Date</th>
-                <th>Valeur Brute</th>
-                <th>Distance</th>
-                <th>Statut</th>
-            </tr>
-            <?php foreach ($mesures as $m): ?>
+        <div class="table-responsive">
+            <table>
                 <tr>
-                    <td><?= $m['date_evenement'] ?></td>
-                    <td><?= $m['valeur_brute'] ?></td>
-                    <td><?= htmlspecialchars($m['distance_cm']) ?> cm</td>
-                    <td>
-                        <span class="badge"
-                            style="background: <?= $m['statut'] === 'alerte collision' ? 'var(--danger)' : 'var(--primary)' ?>;">
-                            <?= htmlspecialchars($m['statut']) ?>
-                        </span>
-                    </td>
+                    <th>Date</th>
+                    <th>Valeur Brute</th>
+                    <th>Distance</th>
+                    <th>Statut</th>
                 </tr>
-            <?php endforeach; ?>
-        </table>
+                    <?php foreach ($mesures as $m): ?>
+                    <tr>
+                        <td><?= $m['date_evenement'] ?></td>
+                        <td><?= $m['valeur_brute'] ?></td>
+                        <td><?= htmlspecialchars($m['distance_cm']) ?> cm</td>
+                        <td>
+                            <span class="badge"
+                                style="background: <?= $m['statut'] === 'alerte collision' ? 'var(--danger)' : 'var(--primary)' ?>;">
+                                    <?= htmlspecialchars($m['statut']) ?>
+                            </span>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+            </table>
+        </div>
 
     <?php elseif ($view_group === 'C'): ?>
         <h3>Suivi Spatiotemporel et Analyse Environnementale</h3>
@@ -111,22 +115,24 @@ include 'header.php';
         </div>
 
         <h3>Journal des Données Brut</h3>
-        <table>
-            <tr>
-                <th>Horodatage</th>
-                <th>Distance Ultrason</th>
-                <th>Humidité</th>
-                <th>Altitude</th>
-            </tr>
-            <?php foreach (array_slice($mesures, 0, 15) as $m): ?>
+        <div class="table-responsive">
+            <table>
                 <tr>
-                    <td><?= $m['date_enregistrement'] ?></td>
-                    <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
-                    <td><?= $m['humidite_pourcent'] ?> %</td>
-                    <td><?= $m['altitude'] ?> m</td>
+                    <th>Horodatage</th>
+                    <th>Distance Ultrason</th>
+                    <th>Humidité</th>
+                    <th>Altitude</th>
                 </tr>
-            <?php endforeach; ?>
-        </table>
+                    <?php foreach (array_slice($mesures, 0, 15) as $m): ?>
+                    <tr>
+                        <td><?= $m['date_enregistrement'] ?></td>
+                        <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
+                        <td><?= $m['humidite_pourcent'] ?> %</td>
+                        <td><?= $m['altitude'] ?> m</td>
+                    </tr>
+                    <?php endforeach; ?>
+            </table>
+        </div>
 
         <script>
             const rawData = <?= json_encode($mesures) ?>;

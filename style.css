@@ -21,16 +21,20 @@ body {
     line-height: 1.5;
 }
 
+/* --- HEADER RESPONSIVE --- */
 header {
     background-color: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 1rem 2%;
+    padding: 1rem 5%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 50;
+    flex-wrap: wrap;
+    /* Permet de passer à la ligne sur très petit écran */
+    gap: 1rem;
 }
 
 header h2 {
@@ -40,10 +44,16 @@ header h2 {
     letter-spacing: -0.025em;
 }
 
+nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
 nav a {
     color: var(--text-muted);
     text-decoration: none;
-    margin-left: 1.5rem;
     font-weight: 500;
     font-size: 0.925rem;
     transition: color 0.2s;
@@ -54,10 +64,11 @@ nav a.active {
     color: var(--primary);
 }
 
+/* --- LAYOUT --- */
 .container {
     max-width: 1280px;
-    margin: 2rem auto;
-    padding: 0 1.5rem;
+    margin: 1.5rem auto;
+    padding: 0 1rem;
     box-sizing: border-box;
 }
 
@@ -65,19 +76,27 @@ nav a.active {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 2rem;
+    padding: 1.5rem;
     box-shadow: var(--shadow);
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
-/* Onglets de navigation entre groupes */
+/* --- ONGLETS ADAPTATIFS --- */
 .group-tabs {
     display: flex;
     gap: 0.5rem;
     border-bottom: 1px solid var(--border);
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     padding-bottom: 0.5rem;
     overflow-x: auto;
+    /* Scroll horizontal fluide si les onglets dépassent sur mobile */
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+
+.group-tabs::-webkit-scrollbar {
+    display: none;
+    /* Cache la barre de défilement laide sur mobile */
 }
 
 .tab-btn {
@@ -86,7 +105,7 @@ nav a.active {
     padding: 0.5rem 1rem;
     color: var(--text-muted);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     cursor: pointer;
     border-radius: 6px;
     transition: all 0.2s;
@@ -103,7 +122,7 @@ nav a.active {
     background: var(--primary);
 }
 
-/* Boutons, Tableaux & Formulaires */
+/* --- FORMULAIRES & BOUTONS --- */
 .btn {
     background: var(--primary);
     color: white;
@@ -115,6 +134,7 @@ nav a.active {
     text-decoration: none;
     display: inline-block;
     transition: background 0.2s;
+    text-align: center;
 }
 
 .btn:hover {
@@ -142,18 +162,37 @@ nav a.active {
     background: var(--bg-main);
 }
 
+/* --- ZONE CONNEXION / INSCRIPTION SÉPARÉE --- */
+.auth-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 2.5rem;
+}
+
+/* --- TABLEAUX RESPONSIVES (ANTI-DEBORDEMENT) --- */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    /* Ajoute un scroll horizontal uniquement au tableau si l'écran est trop petit */
+    -webkit-overflow-scrolling: touch;
+    margin-top: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 1.5rem;
-    font-size: 0.925rem;
+    font-size: 0.9rem;
 }
 
 th,
 td {
-    padding: 10px 14px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--border);
     text-align: left;
+    white-space: nowrap;
+    /* Évite que le texte se coupe bizarrement en deux lignes */
 }
 
 th {
@@ -172,16 +211,17 @@ tr:hover {
     color: white;
     font-size: 0.75rem;
     font-weight: 700;
-    uppercase: true;
 }
 
-/* Composants de la Carte et du Slider */
+/* --- CARTE ET SLIDER --- */
 #map {
-    height: 450px;
+    height: 400px;
     width: 100%;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     margin-bottom: 1.5rem;
+    z-index: 1;
+    /* Évite que la carte passe au-dessus du header */
 }
 
 .slider-container {
@@ -203,4 +243,48 @@ tr:hover {
     font-size: 0.85rem;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+/* =========================================================================
+   MEDIA QUERIES : AJUSTEMENTS SPÉCIFIQUES POUR ÉCRANS MOBILES (<= 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    nav {
+        width: 100%;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    nav a {
+        margin-left: 0;
+        font-size: 0.85rem;
+    }
+
+    .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+    }
+
+    .card {
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    #map {
+        height: 300px;
+        /* Un peu moins haut sur smartphone pour garder du confort */
+    }
+
+    .slider-meta {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        text-align: center;
+    }
 }
