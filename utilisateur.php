@@ -200,6 +200,31 @@ include 'header.php';
                 updateMapTracking(rawData.length - 1);
             }
         </script>
+    
+    <?php elseif ($view_group === 'E'): ?>
+    <h3>Flux de Données — Équipe G7E</h3>
+    <div class="table-responsive">
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Capteur</th>
+                <th>Valeur</th>
+                <th>Statut</th>
+            </tr>
+            <?php foreach ($mesures as $m): ?>
+            <tr>
+                <td><?= $m['date_enregistrement'] ?></td>
+                <td><?= htmlspecialchars($m['type_capteur']) ?></td>
+                <td><?= $m['valeur_mesuree'] ?></td>
+                <td>
+                    <span class="badge" style="background: <?= $m['statut'] === 'Normal' ? 'var(--success)' : 'var(--danger)' ?>;">
+                        <?= htmlspecialchars($m['statut']) ?>
+                    </span>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    </div>
 
     <?php else: ?>
         <div style="background: #e9ecef; padding: 30px; text-align: center; border-radius: 6px; color: #6c757d;">
@@ -208,6 +233,8 @@ include 'header.php';
                 au serveur d'affichage global.</p>
         </div>
     <?php endif; ?>
+
+    
 </div>
 
 <?php
