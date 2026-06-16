@@ -23,7 +23,7 @@ try {
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'E') {
         // Chargement de la table de stockage MinIO du groupe E (Remplacer 'measures_g7e' par le nom réel de leur table si différent)
-        $stmt = $pdo->query("SELECT * FROM measures_g7e ORDER BY uploadedAt DESC LIMIT 50");
+        $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
     }
 } catch (\PDOException $e) {
