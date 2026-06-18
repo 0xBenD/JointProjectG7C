@@ -56,8 +56,8 @@ try {
                 if (floatval($m['distance_cm']) < 10) {
                     $home_logs[] = ['subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)', 'sent_at' => $m['date_enregistrement']];
                 }
-                if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) > 2.0) {
-                    $home_logs[] = ['subject_line' => '☢️ DANGER RADIOLOGIQUE (' . $m['radiation_usv'] . ' µSv/h)', 'sent_at' => $m['date_enregistrement']];
+                if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) >= 400.0) {
+                    $home_logs[] = ['subject_line' => '☢️ DANGER DE MORT RADIOLOGIQUE (' . $m['radiation_usv'] . ' mSv/h)', 'sent_at' => $m['date_enregistrement']];
                 }
             }
         }
@@ -98,16 +98,11 @@ include 'header.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* STYLES OPÉRATIONNELS ENTIÈREMENT EN MODE CLAIR */
-    .flash-alert { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: 900; font-size: 1.2em; text-transform: uppercase; animation: flash 1s infinite; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
-    @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
     .live-badge { display: inline-flex; align-items: center; gap: 8px; font-weight: bold; font-size: 0.85em; padding: 6px 15px; border-radius: 20px; color: white; cursor: pointer; transition: 0.3s; }
     .live-badge.on { background: var(--danger); animation: pulseLive 2s infinite; }
     .live-badge.off { background: #f59e0b; animation: none; }
     @keyframes pulseLive { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
-    /* KPIs en Mode Clair */
     .kpi-main-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .kpi-main-card { background: white; color: var(--text-main); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; overflow: hidden; }
     .kpi-main-title { font-size: 0.75em; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; }
@@ -117,7 +112,6 @@ include 'header.php';
     .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; display: block; text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s; }
     .ha-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
     
-    /* Radar en Mode Clair */
     .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: white; color: var(--text-main); padding: 40px 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 10px; position: relative; }
     .sensor-box { text-align: center; background: #f8fafc; padding: 15px 25px; border-radius: 8px; border: 1px solid var(--border); min-width: 140px; z-index: 2; }
     
@@ -125,7 +119,7 @@ include 'header.php';
     .logbook-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
     .chart-grid-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 20px; margin-bottom: 30px; }
     
-    /* Classes de surbrillance pour les tableaux */
+    .row-mortal { background-color: #fca5a5 !important; border-left: 6px solid #991b1b; color: #7f1d1d; }
     .row-danger { background-color: rgba(239, 68, 68, 0.15) !important; border-left: 4px solid #ef4444; }
     .row-warning { background-color: rgba(245, 158, 11, 0.15) !important; border-left: 4px solid #f59e0b; }
 </style>
@@ -141,29 +135,6 @@ include 'header.php';
         <a href="utilisateur.php?show=E" class="tab-btn <?= $view_group === 'E' ? 'active' : '' ?>">🎵 G7E (Audio)</a>
     </div>
 
-    <?php if ($view_group === 'home' && !empty($all_g7c)): ?>
-        <?php 
-        $latest = $all_g7c[0];
-        $is_global_danger = false;
-        $global_danger_msg = [];
-
-        if (floatval($latest['distance_cm']) < 10) { 
-            $is_global_danger = true; 
-            $global_danger_msg[] = "COLLISION IMMINENTE (" . $latest['distance_cm'] . " cm)"; 
-        }
-        if (isset($latest['radiation_usv']) && floatval($latest['radiation_usv']) > 2.0) { 
-            $is_global_danger = true; 
-            $global_danger_msg[] = "ZONE FORTEMENT RADIOACTIVE (" . $latest['radiation_usv'] . " µSv/h)"; 
-        }
-
-        if ($is_global_danger): 
-        ?>
-            <div class="flash-alert">
-                ⚠️ ALERTE CRITIQUE : <?= implode(" | ", $global_danger_msg) ?> ⚠️
-            </div>
-        <?php endif; ?>
-    <?php endif; ?>
-
     <?php if (isset($db_error)): ?>
         <div class="alert" style="background: var(--danger); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;"><?= htmlspecialchars($db_error) ?></div>
     <?php endif; ?>
@@ -173,28 +144,27 @@ include 'header.php';
         <div class="kpi-main-grid">
             <?php 
             $latest_rad = isset($all_g7c[0]['radiation_usv']) ? floatval($all_g7c[0]['radiation_usv']) : 0;
-            $rad_color = $latest_rad > 2 ? 'var(--danger)' : ($latest_rad > 0.5 ? '#f59e0b' : '#10b981');
+            $rad_color = $latest_rad >= 400 ? 'var(--danger)' : ($latest_rad > 50 ? '#f59e0b' : '#10b981');
             $dist_avant = isset($all_g7c[0]['distance_cm']) ? floatval($all_g7c[0]['distance_cm']) : 999;
             $dist_color = $dist_avant < 10 ? 'var(--danger)' : '#10b981';
             $alt = isset($all_g7c[0]['altitude']) ? htmlspecialchars($all_g7c[0]['altitude']) : '--';
             ?>
-            <div class="kpi-main-card" style="border-bottom: 4px solid <?= $rad_color ?>;">
+            <div class="kpi-main-card" id="kpi-card-rad" style="border-bottom: 4px solid <?= $rad_color ?>;">
                 <div class="kpi-main-title">Niveau de Radiation</div>
-                <div class="kpi-main-value" style="color: <?= $rad_color ?>;"><?= $latest_rad ?> <span style="font-size: 0.5em;">µSv/h</span></div>
+                <div class="kpi-main-value" id="kpi-rad" style="color: <?= $rad_color ?>;"><?= $latest_rad ?> <span style="font-size: 0.5em;">mSv/h</span></div>
             </div>
-            <div class="kpi-main-card" style="border-bottom: 4px solid <?= $dist_color ?>;">
+            <div class="kpi-main-card" id="kpi-card-dist" style="border-bottom: 4px solid <?= $dist_color ?>;">
                 <div class="kpi-main-title">Obstacle Avant</div>
-                <div class="kpi-main-value" style="color: <?= $dist_color ?>;"><?= $dist_avant ?> <span style="font-size: 0.5em;">cm</span></div>
+                <div class="kpi-main-value" id="kpi-dist" style="color: <?= $dist_color ?>;"><?= $dist_avant ?> <span style="font-size: 0.5em;">cm</span></div>
             </div>
             <div class="kpi-main-card" style="border-bottom: 4px solid #3b82f6;">
                 <div class="kpi-main-title">Altitude Actuelle</div>
-                <div class="kpi-main-value" style="color: #3b82f6;"><?= $alt ?> <span style="font-size: 0.5em;">mètres</span></div>
+                <div class="kpi-main-value" id="kpi-altitude" style="color: #3b82f6;"><?= $alt ?> <span style="font-size: 0.5em;">mètres</span></div>
             </div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; margin-top: 20px;">
             <h3 style="margin: 0;">Radar Télémétrique & IMU</h3>
-            
             <div id="live-toggle" class="live-badge on" onclick="toggleLiveMode()">
                 <span id="live-icon">🔴</span> <span id="live-text">EN DIRECT</span>
             </div>
@@ -204,14 +174,11 @@ include 'header.php';
             <div style="position: absolute; top: 15px; background: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85em; z-index: 10; border: 1px solid var(--border); box-shadow: var(--shadow);">
                 IMU : <span style="color: <?= ($home_imu && $home_imu['state'] === 'COLLISION') ? 'var(--danger)' : '#10b981' ?>; font-weight: bold;"><?= $home_imu ? htmlspecialchars($home_imu['state']) : 'INCONNU' ?></span>
             </div>
-            
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: var(--text-muted); text-transform: uppercase;">Avant (G7C)</div>
                 <div id="home-radar-avant" style="font-size: 2.2em; font-weight: bold; color: #10b981;">-- cm</div>
             </div>
-            
             <div style="font-size: 5.5em; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1)); z-index: 2;">🚜</div>
-            
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: var(--text-muted); text-transform: uppercase;">Arrière (G7B)</div>
                 <div id="home-radar-arriere" style="font-size: 2.2em; font-weight: bold; color: #ef4444;">--</div>
@@ -238,7 +205,7 @@ include 'header.php';
                     <?php foreach ($home_logs as $log): ?>
                         <?php 
                         $subj = strtolower($log['subject_line']);
-                        $is_danger = str_contains($subj, 'danger') || str_contains($subj, 'urgence') || str_contains($subj, 'obstacle') || str_contains($subj, 'alert') || str_contains($subj, 'collision');
+                        $is_danger = str_contains($subj, 'danger') || str_contains($subj, 'urgence') || str_contains($subj, 'obstacle') || str_contains($subj, 'alert') || str_contains($subj, 'collision') || str_contains($subj, 'mort');
                         ?>
                         <div class="logbook-item">
                             <div>
@@ -282,7 +249,6 @@ include 'header.php';
         </div>
 
         <script>
-            // --- GESTION DU MODE LIVE ---
             let isLiveMode = localStorage.getItem('rover_live_mode') !== 'false';
             const liveToggle = document.getElementById('live-toggle');
             const liveIcon = document.getElementById('live-icon');
@@ -302,23 +268,16 @@ include 'header.php';
                 isLiveMode = !isLiveMode;
                 localStorage.setItem('rover_live_mode', isLiveMode ? 'true' : 'false');
                 applyLiveUI();
-                if(isLiveMode) window.location.reload();
+                if(isLiveMode) window.location.reload(); 
             }
-
-            setInterval(() => {
-                if(isLiveMode) window.location.reload();
-            }, 5000);
 
             applyLiveUI();
 
-            // --- GESTION CARTE (MISE EN MODE CLAIR) ET SLIDER ---
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
             const defaultLon = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].longitude) : 2.3522;
             const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 16); 
-            
-            // MAP EN MODE CLAIR UNIFIÉ
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
             
             let currentHomeMarker = null;
@@ -329,29 +288,27 @@ include 'header.php';
                 if(point.latitude && point.longitude) {
                     let currentLatLng = [parseFloat(point.latitude), parseFloat(point.longitude)];
                     let rad = parseFloat(point.radiation_usv) || 0.1;
-                    let color = '#10b981'; // Vert
-                    if (rad > 2.0) color = '#ef4444'; // Rouge
-                    else if (rad > 0.5) color = '#f59e0b'; // Orange
-
+                    let color = '#10b981';
+                    if (rad >= 400) color = '#ef4444'; else if (rad > 50) color = '#f59e0b';
                     L.circle(currentLatLng, { color: color, fillColor: color, fillOpacity: 0.6, weight: 0, radius: 5 }).addTo(mapHome);
-
-                    if (prevPoint) {
-                        L.polyline([prevPoint, currentLatLng], { color: color, weight: 4, opacity: 0.8 }).addTo(mapHome);
-                    }
+                    if (prevPoint) L.polyline([prevPoint, currentLatLng], { color: color, weight: 4, opacity: 0.8 }).addTo(mapHome);
                     prevPoint = currentLatLng;
                 }
             });
 
+            // GESTION DU TIMEOUT 10s DU CAPTEUR ARRIERE
             function getClosestBDistance(targetDateStr) {
-                if (!rawDataBHome || rawDataBHome.length === 0) return '--';
+                if (!rawDataBHome || rawDataBHome.length === 0) return '-- (Déco.)';
                 const targetTime = new Date(targetDateStr.replace(' ', 'T')).getTime();
-                let closestVal = rawDataBHome[0].distance_cm;
+                let closestVal = '--';
                 let minDiff = Infinity;
                 for (let i = 0; i < rawDataBHome.length; i++) {
                     const bTime = new Date(rawDataBHome[i].date_evenement.replace(' ', 'T')).getTime();
                     const diff = Math.abs(bTime - targetTime);
                     if (diff < minDiff) { minDiff = diff; closestVal = rawDataBHome[i].distance_cm; }
                 }
+                // Si la différence de temps > 10000ms (10 secondes)
+                if (minDiff > 10000) return '-- (Déco.)';
                 return closestVal;
             }
 
@@ -362,6 +319,9 @@ include 'header.php';
                 
                 document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
                 
+                // ACTUALISATION ALTITUDE (KPI)
+                document.getElementById('kpi-altitude').innerHTML = selectedRecord.altitude + ' <span style="font-size: 0.5em;">mètres</span>';
+
                 const distAvant = parseFloat(selectedRecord.distance_cm);
                 const radarAvantEl = document.getElementById('home-radar-avant');
                 if (distAvant < 10) { 
@@ -372,15 +332,13 @@ include 'header.php';
                 }
                 
                 const closestB = getClosestBDistance(selectedRecord.date_enregistrement);
-                const unit = String(closestB).includes('>') ? '' : ' cm';
+                const unit = String(closestB).includes('>') || closestB.includes('Déco') ? '' : ' cm';
                 document.getElementById('home-radar-arriere').innerText = closestB + unit;
 
                 if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
                 const radVal = selectedRecord.radiation_usv ? selectedRecord.radiation_usv : 'N/A';
-                
                 let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🚜</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
-                const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Altitude:</b> ${selectedRecord.altitude}m<br><b>Radiation:</b> ${radVal} µSv/h`;
-                
+                const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Altitude:</b> ${selectedRecord.altitude}m<br><b>Radiation:</b> ${radVal} mSv/h`;
                 currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], {icon: customIcon}).addTo(mapHome).bindPopup(popup).openPopup();
                 mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
             }
@@ -398,6 +356,52 @@ include 'header.php';
             if (rawDataHome.length > 0) { 
                 updateHomeDash(rawDataHome.length - 1); 
             }
+
+            // NOUVEAU FLUX API TEMPS RÉEL (FETCH SANS CLIGNOTEMENT)
+            setInterval(() => {
+                if (isLiveMode) {
+                    fetch('api_get_latest_measures.php')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.g7c && rawDataHome.length > 0) {
+                                // Si la date enregistrée par l'API est différente de notre dernière donnée locale
+                                if (data.g7c.date_enregistrement !== rawDataHome[0].date_enregistrement) {
+                                    // 1. Ajouter la donnée au tableau local en première position
+                                    rawDataHome.unshift(data.g7c);
+                                    if(data.g7b) rawDataBHome.unshift(data.g7b);
+
+                                    // 2. Mettre à jour le maximum du slider et le faire glisser à droite
+                                    hSlider.max = rawDataHome.length - 1;
+                                    hSlider.value = rawDataHome.length - 1;
+
+                                    // 3. Forcer la mise à jour visuelle du Dashboard
+                                    updateHomeDash(hSlider.value);
+                                    
+                                    // 4. Mettre à jour les KPI de l'en-tête dynamiquement (sans recharger le PHP)
+                                    let rad = parseFloat(data.g7c.radiation_usv);
+                                    let dist = parseFloat(data.g7c.distance_cm);
+                                    document.getElementById('kpi-rad').innerHTML = rad + ' <span style="font-size: 0.5em;">mSv/h</span>';
+                                    document.getElementById('kpi-dist').innerHTML = dist + ' <span style="font-size: 0.5em;">cm</span>';
+                                    
+                                    // 5. Mettre à jour dynamiquement le bandeau flash
+                                    let flashAlert = document.getElementById('header-flash-alert');
+                                    let flashMsg = document.getElementById('header-flash-msg');
+                                    let msgArray = [];
+                                    if(dist < 10) msgArray.push("COLLISION IMMINENTE (" + dist + " cm)");
+                                    if(rad >= 400) msgArray.push("RADIATION MORTELLE (" + rad + " mSv/h)");
+                                    
+                                    if(msgArray.length > 0) {
+                                        flashMsg.innerText = msgArray.join(" | ");
+                                        flashAlert.style.display = "block";
+                                    } else {
+                                        flashAlert.style.display = "none";
+                                    }
+                                }
+                            }
+                        })
+                        .catch(err => console.error('Erreur API LIVE', err));
+                }
+            }, 3000); // 3 secondes d'intervalle, ultra léger pour le navigateur
         </script>
 
     <?php elseif ($view_group === 'C'): ?>
@@ -415,7 +419,7 @@ include 'header.php';
             ?>
             const chartOptionsC = { maintainAspectRatio: false, responsive: true };
             new Chart(document.getElementById('tabChartHumidC'), { type: 'line', data: { labels: <?= json_encode($lbl_c) ?>, datasets: [{ label: 'Humidité du sol (%)', data: <?= json_encode($dat_hum_c) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 }] }, options: chartOptionsC });
-            new Chart(document.getElementById('tabChartRadC'), { type: 'line', data: { labels: <?= json_encode($lbl_c) ?>, datasets: [{ label: 'Radiation (µSv/h)', data: <?= json_encode($dat_rad_c) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }] }, options: chartOptionsC });
+            new Chart(document.getElementById('tabChartRadC'), { type: 'line', data: { labels: <?= json_encode($lbl_c) ?>, datasets: [{ label: 'Radiation (mSv/h)', data: <?= json_encode($dat_rad_c) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }] }, options: chartOptionsC });
         </script>
 
         <h3>Journal Complet des Données G7C</h3>
@@ -426,25 +430,17 @@ include 'header.php';
                     <?php 
                     $dist = floatval($m['distance_cm']);
                     $rad = isset($m['radiation_usv']) ? floatval($m['radiation_usv']) : 0;
-                    
                     $estObstacle = ($dist < 10);
-                    $estRadioactif = ($rad > 2.0);
-                    
-                    // LOGIQUE DES COULEURS DE LIGNE
+                    $estMortel = ($rad >= 400.0);
                     $rowStyle = '';
-                    if ($estRadioactif) {
-                        // Priorité à la radiation : Rouge Vif
-                        $rowStyle = 'class="row-danger" style="color: #b91c1c; font-weight: bold;"';
-                    } elseif ($estObstacle) {
-                        // Ensuite l'obstacle : Orange
-                        $rowStyle = 'class="row-warning" style="color: #b45309;"';
-                    }
+                    if ($estMortel) { $rowStyle = 'class="row-mortal"'; } 
+                    elseif ($estObstacle) { $rowStyle = 'class="row-warning" style="color: #b45309;"'; }
                     ?>
                     <tr <?= $rowStyle ?>>
                         <td><?= $m['date_enregistrement'] ?></td>
-                        <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
-                        <td><strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' µSv/h' : '--' ?></strong></td>
-                        <td><strong style="<?= ($estRadioactif || $estObstacle) ? '' : 'color: #3b82f6;' ?>"><?= $m['altitude'] ?> m</strong></td>
+                        <td><strong style="<?= ($estObstacle && !$estMortel) ? 'color: #d97706;' : '' ?>"><?= $m['distance_cm'] ?> cm</strong></td>
+                        <td><strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' mSv/h' : '--' ?></strong></td>
+                        <td><strong style="<?= ($estMortel || $estObstacle) ? '' : 'color: #3b82f6;' ?>"><?= $m['altitude'] ?> m</strong></td>
                         <td><?= $m['humidite_pourcent'] ?> %</td>
                         <td><span style="font-size: 0.8em; opacity: 0.8;"><?= $m['latitude'] ?>, <?= $m['longitude'] ?></span></td>
                     </tr>
@@ -472,11 +468,7 @@ include 'header.php';
                         <td><?= htmlspecialchars($m['gas_type']) ?></td>
                         <td><strong><?= $m['gas_value'] ?> ppm</strong></td>
                         <td>
-                            <?php if($danger): ?>
-                                ⚠️ DANGER
-                            <?php else: ?>
-                                <span class="badge" style="background: var(--success);">Normal</span>
-                            <?php endif; ?>
+                            <?php if($danger): ?>⚠️ DANGER<?php else: ?><span class="badge" style="background: var(--success);">Normal</span><?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -503,11 +495,7 @@ include 'header.php';
                         <td><?= $m['valeur_brute'] ?></td>
                         <td><?= htmlspecialchars($m['distance_cm']) ?> cm</td>
                         <td>
-                            <?php if($alerte_col): ?>
-                                ⚠️ COLLISION
-                            <?php else: ?>
-                                <span class="badge" style="background: var(--primary);"><?= htmlspecialchars($m['statut']) ?></span>
-                            <?php endif; ?>
+                            <?php if($alerte_col): ?>⚠️ COLLISION<?php else: ?><span class="badge" style="background: var(--primary);"><?= htmlspecialchars($m['statut']) ?></span><?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -516,19 +504,28 @@ include 'header.php';
 
     <?php elseif ($view_group === 'D'): ?>
         <h3>Relevés Climatiques (Capteur DHT11)</h3>
-        <div class="chart-container" style="margin-bottom: 30px;"><canvas id="tabChartD" height="100"></canvas></div>
-        <script>
-            <?php $lbl_d = []; $dat_temp = []; $dat_hum = []; foreach (array_reverse($mesures) as $m) { $lbl_d[] = date('H:i:s', strtotime($m['timestamp'])); $dat_temp[] = $m['temperature']; $dat_hum[] = $m['humidity']; } ?>
-            new Chart(document.getElementById('tabChartD'), { type: 'line', data: { labels: <?= json_encode($lbl_d) ?>, datasets: [ { label: 'Température (°C)', data: <?= json_encode($dat_temp) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }, { label: 'Humidité (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 } ] } });
-        </script>
-        <div class="table-responsive">
-            <table>
-                <tr><th>Horodatage</th><th>Température</th><th>Humidité de l'air</th></tr>
-                <?php foreach ($mesures as $m): ?>
-                    <tr><td><?= $m['timestamp'] ?></td><td><strong style="color: #ef4444;"><?= $m['temperature'] ?> °C</strong></td><td><strong style="color: #3b82f6;"><?= $m['humidity'] ?> %</strong></td></tr>
-                <?php endforeach; ?>
-            </table>
-        </div>
+        
+        <?php if (count($mesures) === 0): ?>
+            <div style="background: #f8fafc; border: 2px dashed #cbd5e1; padding: 40px; text-align: center; border-radius: 12px; margin-bottom: 30px;">
+                <span style="font-size: 3em;">⏳</span>
+                <h4 style="color: var(--text-muted); margin-top: 10px;">En attente de connexion avec le module climatique G7D</h4>
+                <p style="color: var(--text-muted);">Aucune donnée n'a encore été transmise par le capteur DHT11 de l'équipe.</p>
+            </div>
+        <?php else: ?>
+            <div class="chart-container" style="margin-bottom: 30px;"><canvas id="tabChartD" height="100"></canvas></div>
+            <script>
+                <?php $lbl_d = []; $dat_temp = []; $dat_hum = []; foreach (array_reverse($mesures) as $m) { $lbl_d[] = date('H:i:s', strtotime($m['timestamp'])); $dat_temp[] = $m['temperature']; $dat_hum[] = $m['humidity']; } ?>
+                new Chart(document.getElementById('tabChartD'), { type: 'line', data: { labels: <?= json_encode($lbl_d) ?>, datasets: [ { label: 'Température (°C)', data: <?= json_encode($dat_temp) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }, { label: 'Humidité (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 } ] } });
+            </script>
+            <div class="table-responsive">
+                <table>
+                    <tr><th>Horodatage</th><th>Température</th><th>Humidité de l'air</th></tr>
+                    <?php foreach ($mesures as $m): ?>
+                        <tr><td><?= $m['timestamp'] ?></td><td><strong style="color: #ef4444;"><?= $m['temperature'] ?> °C</strong></td><td><strong style="color: #3b82f6;"><?= $m['humidity'] ?> %</strong></td></tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
+        <?php endif; ?>
 
     <?php elseif ($view_group === 'E'): ?>
         <h3>Fichiers Multimédias Archivés — MinIO</h3>
