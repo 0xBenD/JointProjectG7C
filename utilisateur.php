@@ -92,21 +92,35 @@ try {
     $db_error = "Erreur BDD : " . $e->getMessage();
 }
 
+// L'inclusion du header natif
 include 'header.php';
 ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* RESET & OVERRIDES POUR UN LOOK "APP" */
-    body, html { margin: 0; padding: 0; height: 100%; background-color: #f4f7f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-    body > header, body > footer, body > .container { display: none !important; /* Masque l'ancien header/footer */ }
+    /* =======================================================
+       CORRECTION DE LA PAGE BLANCHE 
+       ======================================================= */
+    /* On masque silencieusement l'ancien header et footer */
+    header, footer { display: none !important; }
+    /* On retire les restrictions de l'ancien conteneur */
+    .container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+
+    body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
     
-    /* LAYOUT PRINCIPAL */
-    .app-wrapper { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+    /* Notre application devient une interface plein écran qui recouvre tout */
+    .app-wrapper { 
+        position: fixed; 
+        top: 0; left: 0; right: 0; bottom: 0; 
+        z-index: 9999; 
+        display: flex; 
+        background-color: #f8fafc;
+        overflow: hidden; 
+    }
     
     /* SIDEBAR (Navigation Latérale) */
-    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; z-index: 50; flex-shrink: 0; }
+    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; flex-shrink: 0; }
     .sidebar-header { padding: 25px 20px; display: flex; align-items: center; gap: 15px; }
     .sidebar-header .bot-icon { font-size: 2.2em; background: #f1f5f9; padding: 10px; border-radius: 12px; }
     .sidebar-header .title { font-weight: 900; font-size: 1.2em; color: #0f172a; margin-bottom: 4px; }
@@ -127,15 +141,15 @@ include 'header.php';
     .main-area { flex: 1; overflow-y: auto; background-color: #f8fafc; padding: 30px; position: relative; }
     .page-title { font-size: 1.8em; font-weight: 800; color: #0f172a; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
     
-    /* ALERTE FLASH (Remaniée pour s'intégrer) */
+    /* ALERTE FLASH */
     .flash-alert-banner { background: #ef4444; color: white; padding: 15px; border-radius: 12px; margin-bottom: 25px; text-align: center; font-weight: 900; font-size: 1.1em; letter-spacing: 1px; animation: pulseRed 1.5s infinite; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); display: none; }
     @keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-    /* LE NOUVEAU RADAR (Style Barres de progression) */
-    .telemetry-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; gap: 50px; margin-bottom: 25px; }
+    /* LE NOUVEAU RADAR (Barres de progression) */
+    .telemetry-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; gap: 50px; margin-bottom: 25px; }
     .tel-side { text-align: center; width: 220px; }
     .tel-label { font-size: 0.8em; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
-    .tel-bar-bg { background: #f1f5f9; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 15px; position: relative; }
+    .tel-bar-bg { background: #f1f5f9; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 15px; display: flex; }
     .tel-bar-fill { height: 100%; border-radius: 5px; transition: width 0.3s ease, background-color 0.3s ease; }
     .tel-value { font-size: 2.2em; font-weight: 900; color: #0f172a; margin-bottom: 10px; }
     .tel-status { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 0.75em; font-weight: 800; letter-spacing: 1px; }
@@ -147,8 +161,8 @@ include 'header.php';
     .tel-robot-label { font-weight: 800; color: #475569; letter-spacing: 2px; font-size: 0.85em; }
 
     /* GRILLES & CARTES KPI */
-    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
-    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } .telemetry-card { flex-direction: column; gap: 20px; } }
+    .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 25px; }
+    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } .telemetry-card { flex-direction: column; gap: 20px; } .sidebar { width: 200px; } }
     
     .kpi-card { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     .kpi-title { font-size: 0.75em; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
@@ -156,10 +170,10 @@ include 'header.php';
     
     /* SLIDER & MAP */
     .slider-box { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .map-container { height: 350px; width: 100%; border-radius: 12px; z-index: 1; }
+    .map-container { height: 400px; width: 100%; border-radius: 12px; z-index: 1; }
     
     /* LOGBOOK */
-    .log-container { max-height: 300px; overflow-y: auto; padding-right: 10px; }
+    .log-container { max-height: 350px; overflow-y: auto; padding-right: 10px; }
     .log-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
     .log-item:last-child { border-bottom: none; }
 
@@ -179,13 +193,12 @@ include 'header.php';
 </style>
 
 <div class="app-wrapper">
-    <!-- NOUVELLE SIDEBAR GAUCHE -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="bot-icon">🤖</div>
             <div>
                 <div class="title">Rover Control</div>
-                <div class="subtitle"><?= htmlspecialchars($_SESSION['username']) ?></div>
+                <div class="subtitle"><?= htmlspecialchars($_SESSION['username'] ?? 'Opérateur') ?></div>
             </div>
         </div>
         
@@ -202,7 +215,7 @@ include 'header.php';
 
             <div class="nav-section">
                 <div class="nav-title">Secondary Modules</div>
-                <a href="utilisateur.php?show=B" class="nav-item <?= $view_group === 'B' ? 'active' : '' ?>">🚨 Rear & Kinetic (G7B)</a>
+                <a href="utilisateur.php?show=B" class="nav-item <?= $view_group === 'B' ? 'active' : '' ?>">🚨 Rear & Kin. (G7B)</a>
                 <a href="utilisateur.php?show=A" class="nav-item <?= $view_group === 'A' ? 'active' : '' ?>">💨 Gas & Env. (G7A)</a>
                 <a href="utilisateur.php?show=D" class="nav-item <?= $view_group === 'D' ? 'active' : '' ?>">🌡️ Atmosphere (G7D)</a>
                 <a href="utilisateur.php?show=E" class="nav-item <?= $view_group === 'E' ? 'active' : '' ?>">🎙️ Audio Feed (G7E)</a>
@@ -214,19 +227,14 @@ include 'header.php';
         </div>
     </aside>
 
-    <!-- CONTENU PRINCIPAL -->
     <main class="main-area">
         
         <?php if (isset($db_error)): ?>
             <div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;"><?= htmlspecialchars($db_error) ?></div>
         <?php endif; ?>
 
-        <!-- BANDEAU D'ALERTE (Injecté en JS si danger) -->
         <div id="flash-alert-banner" class="flash-alert-banner"></div>
 
-        <!-- =========================================================
-             VUE GÉNÉRALE (HOME)
-             ========================================================= -->
         <?php if ($view_group === 'home'): ?>
             
             <div class="page-title">
@@ -236,32 +244,27 @@ include 'header.php';
                 </button>
             </div>
 
-            <!-- NOUVEAU RADAR (Style Image) -->
             <div class="telemetry-card">
-                <!-- ARRIÈRE -->
                 <div class="tel-side">
                     <div class="tel-label">Rear Sonar</div>
-                    <div class="tel-bar-bg">
+                    <div class="tel-bar-bg" style="justify-content: flex-end;">
                         <div id="bar-rear" class="tel-bar-fill" style="width: 0%; background: #e2e8f0;"></div>
                     </div>
                     <div id="val-rear" class="tel-value">-- cm</div>
                     <div id="status-rear" class="tel-status" style="background:#f1f5f9; color:#64748b; border: 1px solid #cbd5e1;">WAITING</div>
                 </div>
                 
-                <!-- ROBOT CENTRAL -->
                 <div class="tel-robot">
                     <div class="tel-robot-icon">🤖</div>
-                    <div class="tel-robot-label">ROVER</div>
+                    <div class="tel-robot-label">ROVER G7</div>
                     <div style="margin-top: 5px; font-size: 0.7em; color: #94a3b8;">
                         IMU: <span id="imu-status" style="color: <?= ($home_imu && $home_imu['state'] === 'COLLISION') ? '#ef4444' : '#10b981' ?>; font-weight: bold;"><?= $home_imu ? htmlspecialchars($home_imu['state']) : '--' ?></span>
                     </div>
                 </div>
 
-                <!-- AVANT -->
                 <div class="tel-side">
                     <div class="tel-label">Front Sonar</div>
-                    <div class="tel-bar-bg" style="display: flex; justify-content: flex-end;">
-                        <!-- Barre inversée pour faire comme l'image (part du robot vers l'avant) -->
+                    <div class="tel-bar-bg">
                         <div id="bar-front" class="tel-bar-fill" style="width: 0%; background: #e2e8f0;"></div>
                     </div>
                     <div id="val-front" class="tel-value">-- cm</div>
@@ -269,12 +272,10 @@ include 'header.php';
                 </div>
             </div>
 
-            <!-- GRILLE DE DONNÉES (Style Image) -->
             <div class="dashboard-grid">
-                <!-- COLONNE GAUCHE (Map + Logs) -->
                 <div>
                     <div class="kpi-card" style="padding: 10px; margin-bottom: 20px;">
-                        <div class="kpi-card-title" style="padding: 10px;">📍 Live Position & Radiation</div>
+                        <div class="kpi-title" style="padding: 10px; margin-bottom: 0;">📍 Live Position & Radiation Path</div>
                         <div id="homeMap" class="map-container"></div>
                     </div>
                     
@@ -286,35 +287,35 @@ include 'header.php';
                     </div>
                 </div>
 
-                <!-- COLONNE DROITE (KPIs) -->
                 <div>
-                    <div class="kpi-card" style="margin-bottom: 20px;">
-                        <div class="kpi-card-title">☢️ Radiation Level</div>
-                        <div id="kpi-rad" class="kpi-card-value">-- <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span></div>
-                    </div>
-                    <div class="kpi-card" style="margin-bottom: 20px;">
-                        <div class="kpi-card-title">🏔️ Altitude</div>
-                        <div id="kpi-alt" class="kpi-card-value">-- <span style="font-size: 0.5em; color: #94a3b8;">m</span></div>
-                    </div>
-                    <div class="kpi-card" style="margin-bottom: 20px;">
-                        <div class="kpi-card-title">💨 Gas & Environment</div>
-                        <div class="kpi-card-value" style="font-size: 1.2em; display: flex; align-items: center; justify-content: space-between;">
-                            <span><?= $home_gas ? $home_gas['gas_value'] . ' PPM' : '--' ?></span>
-                            <?php if ($home_gas && $home_gas['danger_level'] != '0'): ?>
-                                <span class="status-danger tel-status">DANGER</span>
-                            <?php else: ?>
-                                <span class="status-safe tel-status">SAFE</span>
-                            <?php endif; ?>
+                    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                        <div class="kpi-card" style="flex: 1;">
+                            <div class="kpi-title">☢️ Radiation Level</div>
+                            <div id="kpi-rad" class="kpi-value">-- <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span></div>
+                        </div>
+                        <div class="kpi-card" style="flex: 1;">
+                            <div class="kpi-title">🏔️ Altitude</div>
+                            <div id="kpi-alt" class="kpi-value">-- <span style="font-size: 0.5em; color: #94a3b8;">m</span></div>
                         </div>
                     </div>
-                    <div class="kpi-card" style="margin-bottom: 20px;">
-                        <div class="kpi-card-title">🌡️ Climate (G7D)</div>
-                        <div class="kpi-card-value" style="font-size: 1.2em;">
-                            <?= $home_g7d ? $home_g7d['temperature'].'°C | '.$home_g7d['humidity'].'%' : 'No Data' ?>
+
+                    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                        <div class="kpi-card" style="flex: 1;">
+                            <div class="kpi-title">💨 Gas (G7A)</div>
+                            <div class="kpi-value" style="font-size: 1.4em;">
+                                <?= $home_gas ? $home_gas['gas_value'] . ' PPM' : '--' ?>
+                            </div>
+                        </div>
+                        <div class="kpi-card" style="flex: 1;">
+                            <div class="kpi-title">🌡️ Climate (G7D)</div>
+                            <div class="kpi-value" style="font-size: 1.4em;">
+                                <?= $home_g7d ? $home_g7d['temperature'].'°C' : 'N/A' ?>
+                            </div>
                         </div>
                     </div>
+
                     <div class="kpi-card">
-                        <div class="kpi-card-title">📋 Mission Logbook</div>
+                        <div class="kpi-title">📋 Mission Logbook</div>
                         <div class="log-container">
                             <?php foreach ($home_logs as $log): ?>
                                 <?php $is_danger = preg_match('/danger|urgence|obstacle|alert|collision|mort/i', $log['subject_line']); ?>
@@ -322,7 +323,7 @@ include 'header.php';
                                     <div style="font-weight: 600; color: <?= $is_danger ? '#ef4444' : '#3b82f6' ?>;">
                                         <?= htmlspecialchars($log['subject_line']) ?>
                                     </div>
-                                    <div style="color: #94a3b8;"><?= date('H:i:s', strtotime($log['sent_at'])) ?></div>
+                                    <div style="color: #94a3b8; font-size: 0.85em;"><?= date('H:i:s', strtotime($log['sent_at'])) ?></div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -404,7 +405,7 @@ include 'header.php';
                     let distArriere = parseFloat(closestB);
 
                     // Avant
-                    let pctAvant = Math.min(100, (distAvant / 200) * 100); // Base 200cm pour barre pleine
+                    let pctAvant = Math.min(100, (distAvant / 150) * 100); 
                     document.getElementById('val-front').innerText = distAvant + ' cm';
                     if (distAvant <= 10) {
                         document.getElementById('bar-front').style.cssText = `width: ${pctAvant}%; background: #ef4444;`;
@@ -423,7 +424,7 @@ include 'header.php';
                         document.getElementById('status-rear').className = "tel-status";
                         document.getElementById('status-rear').innerText = "OFFLINE";
                     } else {
-                        let pctArriere = Math.min(100, (distArriere / 200) * 100);
+                        let pctArriere = Math.min(100, (distArriere / 150) * 100);
                         if (distArriere <= 10) {
                             document.getElementById('bar-rear').style.cssText = `width: ${pctArriere}%; background: #ef4444;`;
                             document.getElementById('status-rear').className = "tel-status status-danger";
@@ -476,12 +477,9 @@ include 'header.php';
                 }, 3000);
             </script>
 
-        <!-- =========================================================
-             ONGLETS SECONDAIRES (A, B, C, D, E)
-             ========================================================= -->
         <?php elseif ($view_group === 'C'): ?>
-            <div class="page-title">GPS & Altitude (G7C)</div>
-            <div class="dashboard-grid">
+            <div class="page-title" style="margin-bottom: 20px;">Primary Sensor Array (G7C)</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="kpi-card"><canvas id="tabChartHumidC" height="150"></canvas></div>
                 <div class="kpi-card"><canvas id="tabChartRadC" height="150"></canvas></div>
             </div>
@@ -514,7 +512,7 @@ include 'header.php';
             </script>
         
         <?php elseif ($view_group === 'A'): ?>
-            <div class="page-title">Gas & Environment (G7A)</div>
+            <div class="page-title" style="margin-bottom: 20px;">Gas & Environment (G7A)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartA" height="80"></canvas></div>
             <div class="kpi-card">
                 <table>
@@ -533,7 +531,7 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'B'): ?>
-            <div class="page-title">Kinetic Overview (G7B)</div>
+            <div class="page-title" style="margin-bottom: 20px;">Kinetic Overview (G7B)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartB" height="80"></canvas></div>
             <div class="kpi-card">
                 <table>
@@ -552,7 +550,7 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'D'): ?>
-            <div class="page-title">Atmosphere (G7D)</div>
+            <div class="page-title" style="margin-bottom: 20px;">Atmosphere (G7D)</div>
             <?php if (count($mesures) === 0): ?>
                 <div style="padding: 40px; text-align: center; color: #94a3b8;">No data received from G7D.</div>
             <?php else: ?>
@@ -572,7 +570,7 @@ include 'header.php';
             <?php endif; ?>
 
         <?php elseif ($view_group === 'E'): ?>
-            <div class="page-title">Audio Feed (G7E)</div>
+            <div class="page-title" style="margin-bottom: 20px;">Audio Feed (G7E)</div>
             <div class="kpi-card">
                 <table>
                     <tr><th>Upload Time</th><th>Filename</th><th>Playback</th><th>Size</th></tr>
@@ -589,8 +587,3 @@ include 'header.php';
 
     </main>
 </div>
-
-<?php 
-// Fake the footer so the layout doesn't break, but hide it.
-echo "<div style='display:none;'>"; include 'footer.php'; echo "</div>"; 
-?>
