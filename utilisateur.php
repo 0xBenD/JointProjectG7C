@@ -38,6 +38,7 @@ try {
             $home_g7d = $stmt->fetch();
         } catch (\PDOException $e) { $home_g7d = null; }
 
+        // Récupération G7C incluant maintenant la radiation_usv
         $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $all_g7c = $stmt_c_all->fetchAll();
         
@@ -60,15 +61,19 @@ try {
                         'sent_at' => $m['date_enregistrement']
                     ];
                 }
+                // On ajoute aussi des alertes de radiation au Logbook !
+                if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) > 2.0) {
+                    $home_logs[] = [
+                        'subject_line' => '☢️ DANGER RADIOLOGIQUE (' . $m['radiation_usv'] . ' µSv/h)',
+                        'sent_at' => $m['date_enregistrement']
+                    ];
+                }
             }
         }
 
-        // On trie le tableau fusionné par date (du plus récent au plus ancien)
         usort($home_logs, function($a, $b) {
             return strtotime($b['sent_at']) - strtotime($a['sent_at']);
         });
-
-        // On garde uniquement les 15 derniers événements pour ne pas surcharger la page
         $home_logs = array_slice($home_logs, 0, 15);
     }
     
@@ -90,9 +95,7 @@ try {
         try {
             $stmt = $pdo->query("SELECT * FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 50");
             $mesures = $stmt->fetchAll();
-        } catch (\PDOException $e) {
-            $db_error = "La table G7D n'existe pas encore. Exécutez la requête SQL fournie.";
-        }
+        } catch (\PDOException $e) { $db_error = "La table G7D n'existe pas encore."; }
     } elseif ($view_group === 'E') {
         $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
@@ -126,8 +129,8 @@ include 'header.php';
         <a href="utilisateur.php?show=home" class="tab-btn <?= $view_group === 'home' ? 'active' : '' ?>">🏠 Vue Générale</a>
         <a href="utilisateur.php?show=A" class="tab-btn <?= $view_group === 'A' ? 'active' : '' ?>">G7A (Gaz)</a>
         <a href="utilisateur.php?show=B" class="tab-btn <?= $view_group === 'B' ? 'active' : '' ?>">G7B (Recul/IMU)</a>
-        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">G7C (Ultrason)</a>
-        <a href="utilisateur.php?show=D" class="tab-btn <?= $view_group === 'D' ? 'active' : '' ?>">G7D (Temp/Hum)</a>
+        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">G7C (Votre Rover)</a>
+        <a href="utilisateur.php?show=D" class="tab-btn <?= $view_group === 'D' ? 'active' : '' ?>">G7D (Climat)</a>
         <a href="utilisateur.php?show=E" class="tab-btn <?= $view_group === 'E' ? 'active' : '' ?>">G7E (Audio)</a>
     </div>
 
@@ -137,25 +140,31 @@ include 'header.php';
 
     <?php if ($view_group === 'home'): ?>
         
-        <div class="ha-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <div class="ha-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+            <a href="utilisateur.php?show=C" class="ha-card" style="border-left: 4px solid #8b5cf6;">
+                <?php 
+                $latest_rad = isset($all_g7c[0]['radiation_usv']) ? floatval($all_g7c[0]['radiation_usv']) : 0;
+                $rad_color = $latest_rad > 2 ? 'var(--danger)' : ($latest_rad > 0.5 ? '#f59e0b' : 'var(--success)');
+                ?>
+                <div class="status-dot" style="background: <?= $rad_color ?>;"></div>
+                <div class="ha-card-header"><span class="ha-icon">☢️</span> Sonde Radiologique</div>
+                <div class="ha-state" style="color: <?= $rad_color ?>;"><?= isset($all_g7c[0]['radiation_usv']) ? $all_g7c[0]['radiation_usv'] . ' µSv/h' : '--' ?></div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">Mesure géolocalisée (G7C)</div>
+            </a>
+
             <a href="utilisateur.php?show=A" class="ha-card">
                 <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
                 <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
-                <div class="ha-card-header"><span class="ha-icon">💨</span> Groupe A (MQ135)</div>
+                <div class="ha-card-header"><span class="ha-icon">💨</span> Capteur Gaz (G7A)</div>
                 <div class="ha-state"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">Cliquez pour l'historique gaz</div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">État : <?= $gas_alert ? 'Critique' : 'Normal' ?></div>
             </a>
+
             <a href="utilisateur.php?show=D" class="ha-card">
                 <div class="status-dot" style="background: var(--primary);"></div>
-                <div class="ha-card-header"><span class="ha-icon">🌡️</span> Groupe D (DHT11)</div>
+                <div class="ha-card-header"><span class="ha-icon">🌡️</span> Climat (G7D)</div>
                 <div class="ha-state"><?= $home_g7d ? htmlspecialchars($home_g7d['temperature']) . '°C' : '--' ?></div>
                 <div style="font-size: 0.85em; color: var(--text-muted);">Humidité : <?= $home_g7d ? htmlspecialchars($home_g7d['humidity']) . '%' : '--' ?></div>
-            </a>
-            <a href="utilisateur.php?show=E" class="ha-card">
-                <div class="status-dot" style="background: #4f46e5;"></div>
-                <div class="ha-card-header"><span class="ha-icon">🎵</span> Groupe E (MinIO)</div>
-                <div class="ha-state"><?= $home_g7e ? $home_g7e['total'] : '0' ?> fichiers</div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">Accéder au stockage audio</div>
             </a>
         </div>
 
@@ -188,24 +197,24 @@ include 'header.php';
         </div>
 
         <h3 style="margin-top: 30px;">Évolution des Constantes Environnementales</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;">
             <div class="chart-container"><canvas id="chartHumid" height="150"></canvas></div>
             <div class="chart-container"><canvas id="chartGas" height="150"></canvas></div>
             <div class="chart-container"><canvas id="chartRecul" height="150"></canvas></div>
+            <div class="chart-container"><canvas id="chartRad" height="150"></canvas></div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
             <div class="chart-container" style="padding: 10px; border: none; overflow: hidden;">
-                <h3 style="margin: 10px;">Géolocalisation Synchronisée</h3>
-                <div id="homeMap" style="height: 300px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+                <h3 style="margin: 10px;">Géolocalisation & Carte Radiologique</h3>
+                <div id="homeMap" style="height: 400px; width: 100%; border-radius: 8px; z-index: 1;"></div>
             </div>
 
-            <div class="chart-container" style="overflow-y: auto; max-height: 350px;">
+            <div class="chart-container" style="overflow-y: auto; max-height: 450px;">
                 <h3 style="margin-top: 0; margin-bottom: 15px;">📋 Alertes & Logbook</h3>
                 <?php if (count($home_logs) > 0): ?>
                     <?php foreach ($home_logs as $log): ?>
                         <?php 
-                        // On vérifie si la ligne contient un mot clé d'alerte pour l'afficher en rouge
                         $subj = strtolower($log['subject_line']);
                         $is_danger = str_contains($subj, 'danger') || str_contains($subj, 'urgence') || str_contains($subj, 'obstacle') || str_contains($subj, 'alert') || str_contains($subj, 'collision');
                         ?>
@@ -236,8 +245,31 @@ include 'header.php';
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
             const defaultLon = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].longitude) : 2.3522;
             const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 15);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
+            
+            // Fond de carte sombre pour mieux voir les zones radioactives
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
+            
             let currentHomeMarker = null;
+
+            // --- NOUVEAU : DESSIN DES ZONES DE RADIATION ---
+            rawDataHome.forEach(point => {
+                if(point.latitude && point.longitude) {
+                    let rad = parseFloat(point.radiation_usv) || 0.1;
+                    let color = '#10b981'; // Vert par défaut
+                    let radius = 10;
+                    
+                    if (rad > 2.0) { color = '#ef4444'; radius = 30; } // Rouge (Danger)
+                    else if (rad > 0.5) { color = '#f59e0b'; radius = 20; } // Orange (Attention)
+
+                    L.circle([point.latitude, point.longitude], {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.3,
+                        weight: 1,
+                        radius: radius
+                    }).addTo(mapHome).bindPopup(`<b>Radiation:</b> ${rad} µSv/h`);
+                }
+            });
 
             function getClosestBDistance(targetDateStr) {
                 if (!rawDataBHome || rawDataBHome.length === 0) return '--';
@@ -275,7 +307,10 @@ include 'header.php';
                 document.getElementById('home-radar-arriere').innerText = closestB + unit;
 
                 if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
-                const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Humidité:</b> ${selectedRecord.humidite_pourcent}%`;
+                
+                const radVal = selectedRecord.radiation_usv ? selectedRecord.radiation_usv : 'N/A';
+                const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Humidité:</b> ${selectedRecord.humidite_pourcent}%<br><b>Radiation:</b> ${radVal} µSv/h`;
+                
                 currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]).addTo(mapHome).bindPopup(popup).openPopup();
                 mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
             }
@@ -285,9 +320,14 @@ include 'header.php';
             if (rawDataHome.length > 0) { updateHomeDash(rawDataHome.length - 1); }
 
             <?php
+            // Extraction des données pour les graphiques
             $hist_c = array_reverse(array_slice($all_g7c, 0, 20));
-            $lbl_hum = []; $dat_hum = [];
-            foreach($hist_c as $c) { $lbl_hum[] = date('H:i', strtotime($c['date_enregistrement'])); $dat_hum[] = $c['humidite_pourcent']; }
+            $lbl_hum = []; $dat_hum = []; $dat_rad = [];
+            foreach($hist_c as $c) { 
+                $lbl_hum[] = date('H:i', strtotime($c['date_enregistrement'])); 
+                $dat_hum[] = $c['humidite_pourcent']; 
+                $dat_rad[] = isset($c['radiation_usv']) ? $c['radiation_usv'] : 0;
+            }
             $lbl_gas = []; $dat_gas = [];
             foreach($hist_gas as $g) { $lbl_gas[] = date('H:i', strtotime($g['created_at'])); $dat_gas[] = $g['gas_value']; }
             $hist_b = array_reverse(array_slice($all_g7b, 0, 20));
@@ -295,9 +335,12 @@ include 'header.php';
             foreach($hist_b as $b) { $lbl_rec[] = date('H:i', strtotime($b['date_evenement'])); $dat_rec[] = floatval(str_replace(['>','<'], '', $b['distance_cm'])); }
             ?>
 
-            new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité du sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { plugins: { legend: { display: true } } } });
-            new Chart(document.getElementById('chartGas'), { type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux de Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] } });
+            new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] } });
+            new Chart(document.getElementById('chartGas'), { type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] } });
             new Chart(document.getElementById('chartRecul'), { type: 'bar', data: { labels: <?= json_encode($lbl_rec) ?>, datasets: [{ label: 'Distance Arrière (cm)', data: <?= json_encode($dat_rec) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] } });
+            
+            // NOUVEAU GRAPHIQUE RADIATION
+            new Chart(document.getElementById('chartRad'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Radiation (µSv/h)', data: <?= json_encode($dat_rad) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }] } });
         </script>
 
     <?php elseif ($view_group === 'A'): ?>
@@ -323,16 +366,18 @@ include 'header.php';
         </div>
 
     <?php elseif ($view_group === 'C'): ?>
-        <h3>Journal Complet des Données G7C</h3>
+        <h3>Journal Complet des Données G7C (Avec Radiation)</h3>
         <div class="table-responsive">
             <table>
-                <tr><th>Horodatage</th><th>Distance Ultrason</th><th>Humidité</th><th>Altitude</th><th>Latitude</th><th>Longitude</th></tr>
+                <tr><th>Horodatage</th><th>Distance</th><th>Radiation</th><th>Humidité</th><th>Latitude</th><th>Longitude</th></tr>
                 <?php foreach ($mesures as $m): ?>
                     <tr>
                         <td><?= $m['date_enregistrement'] ?></td>
                         <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
+                        <td style="color: <?= (isset($m['radiation_usv']) && $m['radiation_usv'] > 2) ? 'var(--danger)' : 'inherit' ?>;">
+                            <strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' µSv/h' : '--' ?></strong>
+                        </td>
                         <td><?= $m['humidite_pourcent'] ?> %</td>
-                        <td><?= $m['altitude'] ?> m</td>
                         <td><?= $m['latitude'] ?></td>
                         <td><?= $m['longitude'] ?></td>
                     </tr>
