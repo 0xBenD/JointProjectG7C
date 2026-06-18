@@ -88,6 +88,9 @@ include 'header.php';
                 <input type="password" name="password" required>
             </div>
             <button type="submit" name="action_login" class="btn">Se connecter</button>
+            <div style="margin-top: 15px; text-align: center;">
+                <a href="forgot_password.php" style="color: var(--primary); font-size: 0.85em; text-decoration: none;">Mot de passe oublié ?</a>
+            </div>
         </form>
     </div>
 
