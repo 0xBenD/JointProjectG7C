@@ -223,6 +223,7 @@ include 'header.php';
         </nav>
         
         <div class="sidebar-footer">
+            <a href="profile.php" class="nav-item" style="color: #2563eb; margin-bottom: 5px;">⚙️ Gérer mon profil</a>
             <a href="connection.php?logout=1" class="btn-logout">❌ Terminate Session</a>
         </div>
     </aside>
