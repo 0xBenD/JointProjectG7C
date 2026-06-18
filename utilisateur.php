@@ -15,14 +15,18 @@ try {
         $stmt = $pdo->query("SELECT * FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'B') {
+        // Données du capteur de recul
         $stmt = $pdo->query("SELECT * FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
+        
+        // NOUVEAU : Récupération des données IMU
+        $stmt_imu = $pdo->query("SELECT * FROM imu_readings_g7b ORDER BY timestamp DESC LIMIT 50");
+        $mesures_imu = $stmt_imu->fetchAll();
+        
     } elseif ($view_group === 'C') {
-        // Pour la carte G7C, on extrait l'ensemble des points sans "LIMIT" strict pour alimenter l'historique du slider
         $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'E') {
-        // Chargement de la table de stockage MinIO du groupe E (Remplacer 'measures_g7e' par le nom réel de leur table si différent)
         $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
     }
@@ -98,6 +102,97 @@ include 'header.php';
                                 style="background: <?= $m['statut'] === 'alerte collision' ? 'var(--danger)' : 'var(--primary)' ?>;">
                                 <?= htmlspecialchars($m['statut']) ?>
                             </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
+
+        <h3 style="margin-top: 40px;">Centrale Inertielle (IMU) — Mouvements et Collisions</h3>
+        <div class="table-responsive">
+            <table>
+                <tr>
+                    <th>Horodatage (Précision µs)</th>
+                    <th>Accélération (X, Y, Z)</th>
+                    <th>Gyroscope (X, Y, Z)</th>
+                    <th>État du Rover</th>
+                </tr>
+                <?php foreach ($mesures_imu as $imu): ?>
+                    <tr>
+                        <td><?= $imu['timestamp'] ?></td>
+                        <td>
+                            <span style="color: var(--text-muted); font-size: 0.9em;">
+                                <?= $imu['acc_x'] ?>, <?= $imu['acc_y'] ?>, <?= $imu['acc_z'] ?>
+                            </span>
+                        </td>
+                        <td>
+                            <span style="color: var(--text-muted); font-size: 0.9em;">
+                                <?= $imu['gyro_x'] ?>, <?= $imu['gyro_y'] ?>, <?= $imu['gyro_z'] ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php
+                            $stateColor = '#64748b'; // IDLE par défaut (gris)
+                            if ($imu['state'] === 'COLLISION') $stateColor = 'var(--danger)';
+                            elseif ($imu['state'] === 'VIBRATION') $stateColor = '#f59e0b'; // orange
+                            elseif ($imu['state'] === 'ANGLE_CHANGE') $stateColor = 'var(--primary)';
+                            ?>
+                            <span class="badge" style="background: <?= $stateColor ?>;">
+                                <?= htmlspecialchars($imu['state']) ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
+
+    <?php elseif ($view_group === 'C'): ?>
+        <?php elseif ($view_group === 'E'): ?>
+        <h3>Fichiers Multimédias Archivés — Stockage Cloud MinIO</h3>
+        <p>Ce module liste les documents binaires capturés et téléversés vers l'instance de stockage distribuée du groupe E.</p>
+
+        <div class="table-responsive">
+            <table>
+                <tr>
+                    <th>Date d'envoi</th>
+                    <th>Nom du Fichier</th>
+                    <th>Lecture Audio</th> <th>Bucket MinIO</th>
+                    <th>Taille</th>
+                    <th>Durée</th>
+                </tr>
+                <?php foreach ($mesures as $m): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($m['uploadedAt']) ?></td>
+                        <td><strong>📁 <?= htmlspecialchars($m['filename']) ?></strong></td>
+                        
+                        <td>
+                            <?php 
+                                $minioBaseUrl = "http://178.33.122.21:9000"; // Modifie ceci si MinIO est sur un autre port/IP
+                                $audioUrl = $minioBaseUrl . "/" . $m['minioBucket'] . "/" . $m['minioPath'];
+                            ?>
+                            <audio controls preload="none" style="height: 35px; width: 220px;">
+                                <source src="<?= htmlspecialchars($audioUrl) ?>" type="audio/wav">
+                                Non supporté.
+                            </audio>
+                        </td>
+
+                        <td><span class="badge" style="background: #4f46e5;"><?= htmlspecialchars($m['minioBucket']) ?></span></td>
+                        <td>
+                            <?php
+                            $sizeInMb = $m['fileSize'] ? round($m['fileSize'] / (1024 * 1024), 2) : 0;
+                            echo $sizeInMb . " Mo";
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            if ($m['duration']) {
+                                $min = floor($m['duration'] / 60);
+                                $sec = $m['duration'] % 60;
+                                echo sprintf("%02d:%02d min", $min, $sec);
+                            } else {
+                                echo "--";
+                            }
+                            ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
