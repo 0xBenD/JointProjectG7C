@@ -98,7 +98,7 @@ include 'header.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* NOUVEAUX STYLES OPÉRATIONNELS */
+    /* STYLES OPÉRATIONNELS */
     .flash-alert { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: 900; font-size: 1.2em; text-transform: uppercase; animation: flash 1s infinite; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
     @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
@@ -107,23 +107,15 @@ include 'header.php';
     .live-badge.off { background: #f59e0b; animation: none; }
     @keyframes pulseLive { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
-    .dropdown { position: relative; display: inline-block; }
-    .dropdown-content { display: none; position: absolute; background-color: white; min-width: 200px; box-shadow: var(--shadow); border-radius: 8px; z-index: 100; border: 1px solid var(--border); overflow: hidden; top: 100%; left: 0; }
-    .dropdown-content a { color: var(--text-main); padding: 12px 16px; text-decoration: none; display: block; border-bottom: 1px solid var(--border); font-size: 0.9em; }
-    .dropdown-content a:hover { background-color: #f1f5f9; }
-    .dropdown:hover .dropdown-content { display: block; }
-
     .kpi-main-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .kpi-main-card { background: #0f172a; color: white; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #334155; position: relative; overflow: hidden; }
     .kpi-main-title { font-size: 0.75em; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; }
     .kpi-main-value { font-size: 2.2em; font-weight: 900; }
 
-    .secondary-sensors summary { background: white; padding: 15px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; font-weight: bold; color: var(--text-muted); list-style: none; transition: 0.2s; }
-    .secondary-sensors summary:hover { background: #f8fafc; color: var(--text-main); }
-    .secondary-sensors[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; }
-
     .ha-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
-    .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; display: block; text-decoration: none; color: inherit; }
+    .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; display: block; text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s; }
+    .ha-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
+    
     .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: #0f172a; color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 10px; position: relative; }
     .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 140px; z-index: 2; }
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
@@ -133,21 +125,13 @@ include 'header.php';
 
 <div class="container" style="max-width: 1280px; margin-top: 20px;">
     
-    <div class="group-tabs" style="margin-bottom: 30px; display: flex; gap: 10px; align-items: center;">
+    <div class="group-tabs" style="margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
         <a href="utilisateur.php?show=home" class="tab-btn <?= $view_group === 'home' ? 'active' : '' ?>">🏠 Command Center</a>
-        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">🚜 Données Brutes Rover (G7C)</a>
-        
-        <div class="dropdown">
-            <button class="tab-btn <?= !in_array($view_group, ['home', 'C']) ? 'active' : '' ?>" style="display: flex; align-items: center; gap: 5px;">
-                🔽 Env. Secondaire
-            </button>
-            <div class="dropdown-content">
-                <a href="utilisateur.php?show=A">💨 Qualité Air (G7A)</a>
-                <a href="utilisateur.php?show=B">🚨 Télémétrie Arrière (G7B)</a>
-                <a href="utilisateur.php?show=D">🌡️ Climat (G7D)</a>
-                <a href="utilisateur.php?show=E">🎵 Audio (G7E)</a>
-            </div>
-        </div>
+        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">🚜 G7C (Votre Rover)</a>
+        <a href="utilisateur.php?show=A" class="tab-btn <?= $view_group === 'A' ? 'active' : '' ?>">💨 G7A (Air)</a>
+        <a href="utilisateur.php?show=B" class="tab-btn <?= $view_group === 'B' ? 'active' : '' ?>">🚨 G7B (Recul)</a>
+        <a href="utilisateur.php?show=D" class="tab-btn <?= $view_group === 'D' ? 'active' : '' ?>">🌡️ G7D (Climat)</a>
+        <a href="utilisateur.php?show=E" class="tab-btn <?= $view_group === 'E' ? 'active' : '' ?>">🎵 G7E (Audio)</a>
     </div>
 
     <?php if ($view_group === 'home' && !empty($all_g7c)): ?>
@@ -269,30 +253,26 @@ include 'header.php';
             </div>
         </div>
 
-        <details class="secondary-sensors">
-            <summary>📊 Afficher les capteurs environnementaux secondaires de l'infrastructure</summary>
-            <div style="padding: 20px; background: white; border: 1px solid var(--border); border-top: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-                <div class="ha-grid">
-                    <div class="ha-card">
-                        <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
-                        <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
-                        <div style="font-weight:bold; margin-bottom:5px;">💨 Gaz (G7A)</div>
-                        <div style="font-size: 1.5em; font-weight: bold;"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
-                    </div>
-                    <div class="ha-card">
-                        <div class="status-dot" style="background: var(--primary);"></div>
-                        <div style="font-weight:bold; margin-bottom:5px;">🌡️ Climat (G7D)</div>
-                        <div style="font-size: 1.5em; font-weight: bold;"><?= $home_g7d ? htmlspecialchars($home_g7d['temperature']) . '°C' : '--' ?></div>
-                        <div style="color: var(--text-muted); font-size: 0.8em;"><?= $home_g7d ? htmlspecialchars($home_g7d['humidity']) . '% Humidité' : '' ?></div>
-                    </div>
-                    <div class="ha-card">
-                        <div class="status-dot" style="background: #4f46e5;"></div>
-                        <div style="font-weight:bold; margin-bottom:5px;">🎵 Serveur Audio (G7E)</div>
-                        <div style="font-size: 1.5em; font-weight: bold;"><?= $home_g7e ? $home_g7e['total'] : '0' ?> <span style="font-size:0.5em;">fichiers</span></div>
-                    </div>
-                </div>
-            </div>
-        </details>
+        <h3 style="margin-top: 30px;">📊 Capteurs Environnementaux Secondaires</h3>
+        <div class="ha-grid">
+            <a href="utilisateur.php?show=A" class="ha-card">
+                <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
+                <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
+                <div style="font-weight:bold; margin-bottom:5px; color: var(--text-muted);">💨 Qualité Air (G7A)</div>
+                <div style="font-size: 1.8em; font-weight: bold; color: var(--text-main);"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
+            </a>
+            <a href="utilisateur.php?show=D" class="ha-card">
+                <div class="status-dot" style="background: var(--primary);"></div>
+                <div style="font-weight:bold; margin-bottom:5px; color: var(--text-muted);">🌡️ Climat (G7D)</div>
+                <div style="font-size: 1.8em; font-weight: bold; color: var(--text-main);"><?= $home_g7d ? htmlspecialchars($home_g7d['temperature']) . '°C' : '--' ?></div>
+                <div style="color: var(--text-muted); font-size: 0.8em;"><?= $home_g7d ? htmlspecialchars($home_g7d['humidity']) . '% Humidité' : '' ?></div>
+            </a>
+            <a href="utilisateur.php?show=E" class="ha-card">
+                <div class="status-dot" style="background: #4f46e5;"></div>
+                <div style="font-weight:bold; margin-bottom:5px; color: var(--text-muted);">🎵 Serveur Audio (G7E)</div>
+                <div style="font-size: 1.8em; font-weight: bold; color: var(--text-main);"><?= $home_g7e ? $home_g7e['total'] : '0' ?> <span style="font-size:0.5em;">fichiers</span></div>
+            </a>
+        </div>
 
         <script>
             // --- GESTION DU MODE LIVE ---
@@ -315,10 +295,9 @@ include 'header.php';
                 isLiveMode = !isLiveMode;
                 localStorage.setItem('rover_live_mode', isLiveMode ? 'true' : 'false');
                 applyLiveUI();
-                if(isLiveMode) window.location.reload(); // Force refresh immediat si on repasse en Live
+                if(isLiveMode) window.location.reload();
             }
 
-            // Rafraichissement automatique toutes les 5 secondes
             setInterval(() => {
                 if(isLiveMode) window.location.reload();
             }, 5000);
@@ -330,13 +309,11 @@ include 'header.php';
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
             const defaultLon = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].longitude) : 2.3522;
-            const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 16); // Zoomé un peu plus près
+            const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 16); 
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
             let currentHomeMarker = null;
 
-            // DESSIN DU FIL D'ARIANE (Polyline segments)
             let prevPoint = null;
-            // On inverse le tableau pour dessiner du plus ancien au plus récent
             let chronologicalData = [...rawDataHome].reverse(); 
             
             chronologicalData.forEach(point => {
@@ -347,10 +324,8 @@ include 'header.php';
                     if (rad > 2.0) color = '#ef4444'; // Rouge
                     else if (rad > 0.5) color = '#f59e0b'; // Orange
 
-                    // Tracer le cercle pour chaque point
                     L.circle(currentLatLng, { color: color, fillColor: color, fillOpacity: 0.5, weight: 0, radius: 5 }).addTo(mapHome);
 
-                    // Tracer la ligne reliant au point précédent
                     if (prevPoint) {
                         L.polyline([prevPoint, currentLatLng], { color: color, weight: 4, opacity: 0.7 }).addTo(mapHome);
                     }
@@ -394,7 +369,6 @@ include 'header.php';
                 if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
                 const radVal = selectedRecord.radiation_usv ? selectedRecord.radiation_usv : 'N/A';
                 
-                // Le marqueur actuel (tracteur)
                 let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🚜</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
                 const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Altitude:</b> ${selectedRecord.altitude}m<br><b>Radiation:</b> ${radVal} µSv/h`;
                 
@@ -404,7 +378,6 @@ include 'header.php';
             
             const hSlider = document.getElementById('home-time-slider');
             hSlider.addEventListener('input', function(e) { 
-                // Si l'utilisateur touche le slider, on coupe le mode live !
                 if(isLiveMode) {
                     isLiveMode = false;
                     localStorage.setItem('rover_live_mode', 'false');
@@ -414,7 +387,6 @@ include 'header.php';
             });
             
             if (rawDataHome.length > 0) { 
-                // Initialiser au dernier élément si en live, sinon conserver la position ? (simplifions : toujours montrer le plus récent au load)
                 updateHomeDash(rawDataHome.length - 1); 
             }
         </script>
