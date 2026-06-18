@@ -98,7 +98,7 @@ include 'header.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* STYLES OPÉRATIONNELS */
+    /* STYLES OPÉRATIONNELS ENTIÈREMENT EN MODE CLAIR */
     .flash-alert { background: var(--danger); color: white; padding: 15px; text-align: center; font-weight: 900; font-size: 1.2em; text-transform: uppercase; animation: flash 1s infinite; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
     @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
@@ -107,20 +107,27 @@ include 'header.php';
     .live-badge.off { background: #f59e0b; animation: none; }
     @keyframes pulseLive { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
+    /* KPIs en Mode Clair */
     .kpi-main-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .kpi-main-card { background: #0f172a; color: white; padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #334155; position: relative; overflow: hidden; }
-    .kpi-main-title { font-size: 0.75em; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; }
+    .kpi-main-card { background: white; color: var(--text-main); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+    .kpi-main-title { font-size: 0.75em; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; font-weight: bold; margin-bottom: 10px; }
     .kpi-main-value { font-size: 2.2em; font-weight: 900; }
 
     .ha-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
     .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; display: block; text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s; }
     .ha-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
     
-    .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: #0f172a; color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 10px; position: relative; }
-    .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 140px; z-index: 2; }
+    /* Radar en Mode Clair */
+    .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: white; color: var(--text-main); padding: 40px 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 10px; position: relative; }
+    .sensor-box { text-align: center; background: #f8fafc; padding: 15px 25px; border-radius: 8px; border: 1px solid var(--border); min-width: 140px; z-index: 2; }
+    
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
     .logbook-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
     .chart-grid-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 20px; margin-bottom: 30px; }
+    
+    /* Classes de surbrillance pour les tableaux */
+    .row-danger { background-color: rgba(239, 68, 68, 0.15) !important; border-left: 4px solid #ef4444; }
+    .row-warning { background-color: rgba(245, 158, 11, 0.15) !important; border-left: 4px solid #f59e0b; }
 </style>
 
 <div class="container" style="max-width: 1280px; margin-top: 20px;">
@@ -194,24 +201,24 @@ include 'header.php';
         </div>
 
         <div class="radar-car">
-            <div style="position: absolute; top: 15px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; font-size: 0.85em; z-index: 10;">
+            <div style="position: absolute; top: 15px; background: white; padding: 5px 15px; border-radius: 20px; font-size: 0.85em; z-index: 10; border: 1px solid var(--border); box-shadow: var(--shadow);">
                 IMU : <span style="color: <?= ($home_imu && $home_imu['state'] === 'COLLISION') ? 'var(--danger)' : '#10b981' ?>; font-weight: bold;"><?= $home_imu ? htmlspecialchars($home_imu['state']) : 'INCONNU' ?></span>
             </div>
             
             <div class="sensor-box">
-                <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Avant (G7C)</div>
+                <div style="font-size: 0.85em; color: var(--text-muted); text-transform: uppercase;">Avant (G7C)</div>
                 <div id="home-radar-avant" style="font-size: 2.2em; font-weight: bold; color: #10b981;">-- cm</div>
             </div>
             
-            <div style="font-size: 5.5em; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); z-index: 2;">🚜</div>
+            <div style="font-size: 5.5em; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1)); z-index: 2;">🚜</div>
             
             <div class="sensor-box">
-                <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Arrière (G7B)</div>
+                <div style="font-size: 0.85em; color: var(--text-muted); text-transform: uppercase;">Arrière (G7B)</div>
                 <div id="home-radar-arriere" style="font-size: 2.2em; font-weight: bold; color: #ef4444;">--</div>
             </div>
         </div>
 
-        <div class="slider-container" style="background: white; border-radius: 12px; margin-bottom: 30px; padding: 15px; border: 1px solid var(--border);">
+        <div class="slider-container">
             <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); font-weight: bold;">
                 <span>Ancien</span>
                 <span id="home-slider-date" style="color: var(--primary); font-size: 1rem;">Chargement...</span>
@@ -304,15 +311,17 @@ include 'header.php';
 
             applyLiveUI();
 
-            // --- GESTION CARTE, HEATMAP ET SLIDER ---
+            // --- GESTION CARTE (MISE EN MODE CLAIR) ET SLIDER ---
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
             const defaultLon = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].longitude) : 2.3522;
             const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 16); 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
+            
+            // MAP EN MODE CLAIR UNIFIÉ
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
+            
             let currentHomeMarker = null;
-
             let prevPoint = null;
             let chronologicalData = [...rawDataHome].reverse(); 
             
@@ -324,10 +333,10 @@ include 'header.php';
                     if (rad > 2.0) color = '#ef4444'; // Rouge
                     else if (rad > 0.5) color = '#f59e0b'; // Orange
 
-                    L.circle(currentLatLng, { color: color, fillColor: color, fillOpacity: 0.5, weight: 0, radius: 5 }).addTo(mapHome);
+                    L.circle(currentLatLng, { color: color, fillColor: color, fillOpacity: 0.6, weight: 0, radius: 5 }).addTo(mapHome);
 
                     if (prevPoint) {
-                        L.polyline([prevPoint, currentLatLng], { color: color, weight: 4, opacity: 0.7 }).addTo(mapHome);
+                        L.polyline([prevPoint, currentLatLng], { color: color, weight: 4, opacity: 0.8 }).addTo(mapHome);
                     }
                     prevPoint = currentLatLng;
                 }
@@ -416,16 +425,28 @@ include 'header.php';
                 <?php foreach ($mesures as $m): ?>
                     <?php 
                     $dist = floatval($m['distance_cm']);
+                    $rad = isset($m['radiation_usv']) ? floatval($m['radiation_usv']) : 0;
+                    
                     $estObstacle = ($dist < 10);
-                    $rowStyle = $estObstacle ? 'background-color: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b;' : '';
+                    $estRadioactif = ($rad > 2.0);
+                    
+                    // LOGIQUE DES COULEURS DE LIGNE
+                    $rowStyle = '';
+                    if ($estRadioactif) {
+                        // Priorité à la radiation : Rouge Vif
+                        $rowStyle = 'class="row-danger" style="color: #b91c1c; font-weight: bold;"';
+                    } elseif ($estObstacle) {
+                        // Ensuite l'obstacle : Orange
+                        $rowStyle = 'class="row-warning" style="color: #b45309;"';
+                    }
                     ?>
-                    <tr style="<?= $rowStyle ?>">
+                    <tr <?= $rowStyle ?>>
                         <td><?= $m['date_enregistrement'] ?></td>
-                        <td><strong style="<?= $estObstacle ? 'color: #d97706;' : '' ?>"><?= $m['distance_cm'] ?> cm</strong></td>
-                        <td style="color: <?= (isset($m['radiation_usv']) && $m['radiation_usv'] > 2) ? 'var(--danger)' : 'inherit' ?>;"><strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' µSv/h' : '--' ?></strong></td>
-                        <td><strong style="color: #3b82f6;"><?= $m['altitude'] ?> m</strong></td>
+                        <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
+                        <td><strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' µSv/h' : '--' ?></strong></td>
+                        <td><strong style="<?= ($estRadioactif || $estObstacle) ? '' : 'color: #3b82f6;' ?>"><?= $m['altitude'] ?> m</strong></td>
                         <td><?= $m['humidite_pourcent'] ?> %</td>
-                        <td><span style="font-size: 0.8em; color: var(--text-muted);"><?= $m['latitude'] ?>, <?= $m['longitude'] ?></span></td>
+                        <td><span style="font-size: 0.8em; opacity: 0.8;"><?= $m['latitude'] ?>, <?= $m['longitude'] ?></span></td>
                     </tr>
                 <?php endforeach; ?>
             </table>
@@ -442,7 +463,22 @@ include 'header.php';
             <table>
                 <tr><th>Date</th><th>Type Gaz</th><th>Valeur</th><th>Danger</th></tr>
                 <?php foreach ($mesures as $m): ?>
-                    <tr><td><?= $m['created_at'] ?></td><td><?= htmlspecialchars($m['gas_type']) ?></td><td><strong><?= $m['gas_value'] ?> ppm</strong></td><td><span class="badge" style="background: <?= $m['danger_level'] == '0' ? 'var(--success)' : 'var(--danger)' ?>;"><?= $m['danger_level'] == '0' ? 'Normal' : 'Danger' ?></span></td></tr>
+                    <?php 
+                    $danger = ($m['danger_level'] != '0');
+                    $rowClass = $danger ? 'class="row-danger" style="color: #b91c1c; font-weight: bold;"' : '';
+                    ?>
+                    <tr <?= $rowClass ?>>
+                        <td><?= $m['created_at'] ?></td>
+                        <td><?= htmlspecialchars($m['gas_type']) ?></td>
+                        <td><strong><?= $m['gas_value'] ?> ppm</strong></td>
+                        <td>
+                            <?php if($danger): ?>
+                                ⚠️ DANGER
+                            <?php else: ?>
+                                <span class="badge" style="background: var(--success);">Normal</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 <?php endforeach; ?>
             </table>
         </div>
@@ -458,7 +494,22 @@ include 'header.php';
             <table>
                 <tr><th>Date</th><th>Valeur Brute</th><th>Distance</th><th>Statut</th></tr>
                 <?php foreach ($mesures as $m): ?>
-                    <tr><td><?= $m['date_evenement'] ?></td><td><?= $m['valeur_brute'] ?></td><td><?= htmlspecialchars($m['distance_cm']) ?> cm</td><td><span class="badge" style="background: <?= $m['statut'] === 'alerte collision' ? 'var(--danger)' : 'var(--primary)' ?>;"><?= htmlspecialchars($m['statut']) ?></span></td></tr>
+                    <?php 
+                    $alerte_col = ($m['statut'] === 'alerte collision');
+                    $rowClass = $alerte_col ? 'class="row-danger" style="color: #b91c1c; font-weight: bold;"' : '';
+                    ?>
+                    <tr <?= $rowClass ?>>
+                        <td><?= $m['date_evenement'] ?></td>
+                        <td><?= $m['valeur_brute'] ?></td>
+                        <td><?= htmlspecialchars($m['distance_cm']) ?> cm</td>
+                        <td>
+                            <?php if($alerte_col): ?>
+                                ⚠️ COLLISION
+                            <?php else: ?>
+                                <span class="badge" style="background: var(--primary);"><?= htmlspecialchars($m['statut']) ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 <?php endforeach; ?>
             </table>
         </div>
