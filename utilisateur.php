@@ -38,7 +38,6 @@ try {
             $home_g7d = $stmt->fetch();
         } catch (\PDOException $e) { $home_g7d = null; }
 
-        // Récupération G7C incluant maintenant la radiation_usv
         $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $all_g7c = $stmt_c_all->fetchAll();
         
@@ -48,32 +47,21 @@ try {
         $stmt_gas_all = $pdo->query("SELECT gas_value, created_at FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 20");
         $hist_gas = array_reverse($stmt_gas_all->fetchAll());
 
-        // --- GESTION COMBINÉE DU LOGBOOK ---
+        // GESTION DU LOGBOOK
         $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 30");
         $home_logs = $stmt->fetchAll();
 
-        // On injecte virtuellement toutes les alertes < 10cm du groupe G7C
         if (!empty($all_g7c)) {
             foreach ($all_g7c as $m) {
                 if (floatval($m['distance_cm']) <= 10) {
-                    $home_logs[] = [
-                        'subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)',
-                        'sent_at' => $m['date_enregistrement']
-                    ];
+                    $home_logs[] = ['subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)', 'sent_at' => $m['date_enregistrement']];
                 }
-                // On ajoute aussi des alertes de radiation au Logbook !
                 if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) > 2.0) {
-                    $home_logs[] = [
-                        'subject_line' => '☢️ DANGER RADIOLOGIQUE (' . $m['radiation_usv'] . ' µSv/h)',
-                        'sent_at' => $m['date_enregistrement']
-                    ];
+                    $home_logs[] = ['subject_line' => '☢️ DANGER RADIOLOGIQUE (' . $m['radiation_usv'] . ' µSv/h)', 'sent_at' => $m['date_enregistrement']];
                 }
             }
         }
-
-        usort($home_logs, function($a, $b) {
-            return strtotime($b['sent_at']) - strtotime($a['sent_at']);
-        });
+        usort($home_logs, function($a, $b) { return strtotime($b['sent_at']) - strtotime($a['sent_at']); });
         $home_logs = array_slice($home_logs, 0, 15);
     }
     
@@ -121,6 +109,10 @@ include 'header.php';
     .radar-car .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 160px; z-index: 2; }
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
     .logbook-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
+    
+    /* MODIFICATION : Grille 2x2 pour les graphiques de l'accueil */
+    .chart-grid-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 20px; margin-bottom: 30px; }
+    @media (max-width: 768px) { .chart-grid-2x2 { grid-template-columns: 1fr; } }
 </style>
 
 <div class="container" style="max-width: 1280px; margin-top: 20px;">
@@ -151,7 +143,6 @@ include 'header.php';
                 <div class="ha-state" style="color: <?= $rad_color ?>;"><?= isset($all_g7c[0]['radiation_usv']) ? $all_g7c[0]['radiation_usv'] . ' µSv/h' : '--' ?></div>
                 <div style="font-size: 0.85em; color: var(--text-muted);">Mesure géolocalisée (G7C)</div>
             </a>
-
             <a href="utilisateur.php?show=A" class="ha-card">
                 <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
                 <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
@@ -159,7 +150,6 @@ include 'header.php';
                 <div class="ha-state"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
                 <div style="font-size: 0.85em; color: var(--text-muted);">État : <?= $gas_alert ? 'Critique' : 'Normal' ?></div>
             </a>
-
             <a href="utilisateur.php?show=D" class="ha-card">
                 <div class="status-dot" style="background: var(--primary);"></div>
                 <div class="ha-card-header"><span class="ha-icon">🌡️</span> Climat (G7D)</div>
@@ -197,11 +187,12 @@ include 'header.php';
         </div>
 
         <h3 style="margin-top: 30px;">Évolution des Constantes Environnementales</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;">
-            <div class="chart-container"><canvas id="chartHumid" height="150"></canvas></div>
-            <div class="chart-container"><canvas id="chartGas" height="150"></canvas></div>
-            <div class="chart-container"><canvas id="chartRecul" height="150"></canvas></div>
-            <div class="chart-container"><canvas id="chartRad" height="150"></canvas></div>
+        
+        <div class="chart-grid-2x2">
+            <div class="chart-container"><canvas id="chartHumid" height="200"></canvas></div>
+            <div class="chart-container"><canvas id="chartGas" height="200"></canvas></div>
+            <div class="chart-container"><canvas id="chartRecul" height="200"></canvas></div>
+            <div class="chart-container"><canvas id="chartRad" height="200"></canvas></div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
@@ -209,7 +200,6 @@ include 'header.php';
                 <h3 style="margin: 10px;">Géolocalisation & Carte Radiologique</h3>
                 <div id="homeMap" style="height: 400px; width: 100%; border-radius: 8px; z-index: 1;"></div>
             </div>
-
             <div class="chart-container" style="overflow-y: auto; max-height: 450px;">
                 <h3 style="margin-top: 0; margin-bottom: 15px;">📋 Alertes & Logbook</h3>
                 <?php if (count($home_logs) > 0): ?>
@@ -239,35 +229,21 @@ include 'header.php';
         </div>
 
         <script>
+            // --- SCRIPT CARTE ET SLIDER (identique, fonctionne parfaitement) ---
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
-            
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
             const defaultLon = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].longitude) : 2.3522;
             const mapHome = L.map('homeMap').setView([defaultLat, defaultLon], 15);
-            
-            // Fond de carte sombre pour mieux voir les zones radioactives
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapHome);
-            
             let currentHomeMarker = null;
 
-            // --- NOUVEAU : DESSIN DES ZONES DE RADIATION ---
             rawDataHome.forEach(point => {
                 if(point.latitude && point.longitude) {
                     let rad = parseFloat(point.radiation_usv) || 0.1;
-                    let color = '#10b981'; // Vert par défaut
-                    let radius = 10;
-                    
-                    if (rad > 2.0) { color = '#ef4444'; radius = 30; } // Rouge (Danger)
-                    else if (rad > 0.5) { color = '#f59e0b'; radius = 20; } // Orange (Attention)
-
-                    L.circle([point.latitude, point.longitude], {
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.3,
-                        weight: 1,
-                        radius: radius
-                    }).addTo(mapHome).bindPopup(`<b>Radiation:</b> ${rad} µSv/h`);
+                    let color = '#10b981'; let radius = 10;
+                    if (rad > 2.0) { color = '#ef4444'; radius = 30; } else if (rad > 0.5) { color = '#f59e0b'; radius = 20; }
+                    L.circle([point.latitude, point.longitude], { color: color, fillColor: color, fillOpacity: 0.3, weight: 1, radius: radius }).addTo(mapHome).bindPopup(`<b>Radiation:</b> ${rad} µSv/h`);
                 }
             });
 
@@ -285,32 +261,18 @@ include 'header.php';
             }
 
             function updateHomeDash(index) {
-                const actualIndex = (rawDataHome.length - 1) - index; 
-                const selectedRecord = rawDataHome[actualIndex]; 
-                if (!selectedRecord) return;
-                
+                const actualIndex = (rawDataHome.length - 1) - index; const selectedRecord = rawDataHome[actualIndex]; if (!selectedRecord) return;
                 document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
-                
                 const distAvant = parseFloat(selectedRecord.distance_cm);
                 const radarAvantEl = document.getElementById('home-radar-avant');
-                
-                if (distAvant <= 10) {
-                    radarAvantEl.style.color = 'var(--danger)';
-                    radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>';
-                } else {
-                    radarAvantEl.style.color = '#10b981';
-                    radarAvantEl.innerHTML = distAvant + ' cm';
-                }
-                
+                if (distAvant <= 10) { radarAvantEl.style.color = 'var(--danger)'; radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>'; } 
+                else { radarAvantEl.style.color = '#10b981'; radarAvantEl.innerHTML = distAvant + ' cm'; }
                 const closestB = getClosestBDistance(selectedRecord.date_enregistrement);
                 const unit = String(closestB).includes('>') ? '' : ' cm';
                 document.getElementById('home-radar-arriere').innerText = closestB + unit;
-
                 if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
-                
                 const radVal = selectedRecord.radiation_usv ? selectedRecord.radiation_usv : 'N/A';
                 const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Humidité:</b> ${selectedRecord.humidite_pourcent}%<br><b>Radiation:</b> ${radVal} µSv/h`;
-                
                 currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]).addTo(mapHome).bindPopup(popup).openPopup();
                 mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
             }
@@ -320,31 +282,37 @@ include 'header.php';
             if (rawDataHome.length > 0) { updateHomeDash(rawDataHome.length - 1); }
 
             <?php
-            // Extraction des données pour les graphiques
             $hist_c = array_reverse(array_slice($all_g7c, 0, 20));
             $lbl_hum = []; $dat_hum = []; $dat_rad = [];
-            foreach($hist_c as $c) { 
-                $lbl_hum[] = date('H:i', strtotime($c['date_enregistrement'])); 
-                $dat_hum[] = $c['humidite_pourcent']; 
-                $dat_rad[] = isset($c['radiation_usv']) ? $c['radiation_usv'] : 0;
-            }
-            $lbl_gas = []; $dat_gas = [];
-            foreach($hist_gas as $g) { $lbl_gas[] = date('H:i', strtotime($g['created_at'])); $dat_gas[] = $g['gas_value']; }
+            foreach($hist_c as $c) { $lbl_hum[] = date('H:i', strtotime($c['date_enregistrement'])); $dat_hum[] = $c['humidite_pourcent']; $dat_rad[] = isset($c['radiation_usv']) ? $c['radiation_usv'] : 0; }
+            $lbl_gas = []; $dat_gas = []; foreach($hist_gas as $g) { $lbl_gas[] = date('H:i', strtotime($g['created_at'])); $dat_gas[] = $g['gas_value']; }
             $hist_b = array_reverse(array_slice($all_g7b, 0, 20));
-            $lbl_rec = []; $dat_rec = [];
-            foreach($hist_b as $b) { $lbl_rec[] = date('H:i', strtotime($b['date_evenement'])); $dat_rec[] = floatval(str_replace(['>','<'], '', $b['distance_cm'])); }
+            $lbl_rec = []; $dat_rec = []; foreach($hist_b as $b) { $lbl_rec[] = date('H:i', strtotime($b['date_evenement'])); $dat_rec[] = floatval(str_replace(['>','<'], '', $b['distance_cm'])); }
             ?>
 
-            new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] } });
-            new Chart(document.getElementById('chartGas'), { type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] } });
-            new Chart(document.getElementById('chartRecul'), { type: 'bar', data: { labels: <?= json_encode($lbl_rec) ?>, datasets: [{ label: 'Distance Arrière (cm)', data: <?= json_encode($dat_rec) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] } });
-            
-            // NOUVEAU GRAPHIQUE RADIATION
-            new Chart(document.getElementById('chartRad'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Radiation (µSv/h)', data: <?= json_encode($dat_rad) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }] } });
+            // MODIFICATION : maintainAspectRatio: false permet au graph de prendre toute la hauteur (200px) qu'on lui donne.
+            const chartOptions = { maintainAspectRatio: false, responsive: true };
+
+            new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: chartOptions });
+            new Chart(document.getElementById('chartGas'), { type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] }, options: chartOptions });
+            new Chart(document.getElementById('chartRecul'), { type: 'bar', data: { labels: <?= json_encode($lbl_rec) ?>, datasets: [{ label: 'Distance Arrière (cm)', data: <?= json_encode($dat_rec) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] }, options: chartOptions });
+            new Chart(document.getElementById('chartRad'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Radiation (µSv/h)', data: <?= json_encode($dat_rad) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }] }, options: chartOptions });
         </script>
 
     <?php elseif ($view_group === 'A'): ?>
         <h3>Historique Complet des Gaz</h3>
+        
+        <div class="chart-container" style="margin-bottom: 30px;">
+            <canvas id="tabChartA" height="100"></canvas>
+        </div>
+        <script>
+            <?php
+            $lbl_a = []; $dat_a = [];
+            foreach (array_reverse($mesures) as $m) { $lbl_a[] = date('H:i:s', strtotime($m['created_at'])); $dat_a[] = $m['gas_value']; }
+            ?>
+            new Chart(document.getElementById('tabChartA'), { type: 'line', data: { labels: <?= json_encode($lbl_a) ?>, datasets: [{ label: 'Concentration Globale MQ135 (ppm)', data: <?= json_encode($dat_a) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.3 }] } });
+        </script>
+
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Type Gaz</th><th>Valeur</th><th>Danger</th></tr>
@@ -356,6 +324,18 @@ include 'header.php';
 
     <?php elseif ($view_group === 'B'): ?>
         <h3>Historique Recul & IMU Brut</h3>
+
+        <div class="chart-container" style="margin-bottom: 30px;">
+            <canvas id="tabChartB" height="100"></canvas>
+        </div>
+        <script>
+            <?php
+            $lbl_b = []; $dat_b = [];
+            foreach (array_reverse($mesures) as $m) { $lbl_b[] = date('H:i:s', strtotime($m['date_evenement'])); $dat_b[] = floatval(str_replace(['>','<'], '', $m['distance_cm'])); }
+            ?>
+            new Chart(document.getElementById('tabChartB'), { type: 'bar', data: { labels: <?= json_encode($lbl_b) ?>, datasets: [{ label: 'Historique Télémétrie Arrière (cm)', data: <?= json_encode($dat_b) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] } });
+        </script>
+
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Valeur Brute</th><th>Distance</th><th>Statut</th></tr>
@@ -387,6 +367,31 @@ include 'header.php';
 
     <?php elseif ($view_group === 'D'): ?>
         <h3>Relevés Climatiques (Capteur DHT11)</h3>
+        
+        <div class="chart-container" style="margin-bottom: 30px;">
+            <canvas id="tabChartD" height="100"></canvas>
+        </div>
+        <script>
+            <?php
+            $lbl_d = []; $dat_temp = []; $dat_hum = [];
+            foreach (array_reverse($mesures) as $m) { 
+                $lbl_d[] = date('H:i:s', strtotime($m['timestamp'])); 
+                $dat_temp[] = $m['temperature']; 
+                $dat_hum[] = $m['humidity']; 
+            }
+            ?>
+            new Chart(document.getElementById('tabChartD'), { 
+                type: 'line', 
+                data: { 
+                    labels: <?= json_encode($lbl_d) ?>, 
+                    datasets: [
+                        { label: 'Température (°C)', data: <?= json_encode($dat_temp) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'Humidité (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 }
+                    ] 
+                } 
+            });
+        </script>
+
         <div class="table-responsive">
             <table>
                 <tr><th>Horodatage</th><th>Température</th><th>Humidité de l'air</th></tr>
