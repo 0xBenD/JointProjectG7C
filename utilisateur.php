@@ -53,7 +53,7 @@ try {
 
         if (!empty($all_g7c)) {
             foreach ($all_g7c as $m) {
-                if (floatval($m['distance_cm']) <= 10) {
+                if (floatval($m['distance_cm']) < 10) {
                     $home_logs[] = ['subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)', 'sent_at' => $m['date_enregistrement']];
                 }
                 if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) > 2.0) {
@@ -109,8 +109,6 @@ include 'header.php';
     .radar-car .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 160px; z-index: 2; }
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
     .logbook-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
-    
-    /* MODIFICATION : Grille 2x2 pour les graphiques de l'accueil */
     .chart-grid-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 20px; margin-bottom: 30px; }
     @media (max-width: 768px) { .chart-grid-2x2 { grid-template-columns: 1fr; } }
 </style>
@@ -229,7 +227,6 @@ include 'header.php';
         </div>
 
         <script>
-            // --- SCRIPT CARTE ET SLIDER (identique, fonctionne parfaitement) ---
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             const defaultLat = rawDataHome.length > 0 ? parseFloat(rawDataHome[0].latitude) : 48.8566;
@@ -265,7 +262,7 @@ include 'header.php';
                 document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
                 const distAvant = parseFloat(selectedRecord.distance_cm);
                 const radarAvantEl = document.getElementById('home-radar-avant');
-                if (distAvant <= 10) { radarAvantEl.style.color = 'var(--danger)'; radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>'; } 
+                if (distAvant < 10) { radarAvantEl.style.color = 'var(--danger)'; radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>'; } 
                 else { radarAvantEl.style.color = '#10b981'; radarAvantEl.innerHTML = distAvant + ' cm'; }
                 const closestB = getClosestBDistance(selectedRecord.date_enregistrement);
                 const unit = String(closestB).includes('>') ? '' : ' cm';
@@ -290,7 +287,6 @@ include 'header.php';
             $lbl_rec = []; $dat_rec = []; foreach($hist_b as $b) { $lbl_rec[] = date('H:i', strtotime($b['date_evenement'])); $dat_rec[] = floatval(str_replace(['>','<'], '', $b['distance_cm'])); }
             ?>
 
-            // MODIFICATION : maintainAspectRatio: false permet au graph de prendre toute la hauteur (200px) qu'on lui donne.
             const chartOptions = { maintainAspectRatio: false, responsive: true };
 
             new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: chartOptions });
@@ -301,7 +297,6 @@ include 'header.php';
 
     <?php elseif ($view_group === 'A'): ?>
         <h3>Historique Complet des Gaz</h3>
-        
         <div class="chart-container" style="margin-bottom: 30px;">
             <canvas id="tabChartA" height="100"></canvas>
         </div>
@@ -312,7 +307,6 @@ include 'header.php';
             ?>
             new Chart(document.getElementById('tabChartA'), { type: 'line', data: { labels: <?= json_encode($lbl_a) ?>, datasets: [{ label: 'Concentration Globale MQ135 (ppm)', data: <?= json_encode($dat_a) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.3 }] } });
         </script>
-
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Type Gaz</th><th>Valeur</th><th>Danger</th></tr>
@@ -324,7 +318,6 @@ include 'header.php';
 
     <?php elseif ($view_group === 'B'): ?>
         <h3>Historique Recul & IMU Brut</h3>
-
         <div class="chart-container" style="margin-bottom: 30px;">
             <canvas id="tabChartB" height="100"></canvas>
         </div>
@@ -335,7 +328,6 @@ include 'header.php';
             ?>
             new Chart(document.getElementById('tabChartB'), { type: 'bar', data: { labels: <?= json_encode($lbl_b) ?>, datasets: [{ label: 'Historique Télémétrie Arrière (cm)', data: <?= json_encode($dat_b) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] } });
         </script>
-
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Valeur Brute</th><th>Distance</th><th>Statut</th></tr>
@@ -346,14 +338,53 @@ include 'header.php';
         </div>
 
     <?php elseif ($view_group === 'C'): ?>
-        <h3>Journal Complet des Données G7C (Avec Radiation)</h3>
+        <h3>Analyse Détaillée G7C (Humidité & Radiation)</h3>
+        
+        <div class="chart-grid-2x2">
+            <div class="chart-container"><canvas id="tabChartHumidC" height="200"></canvas></div>
+            <div class="chart-container"><canvas id="tabChartRadC" height="200"></canvas></div>
+        </div>
+
+        <script>
+            <?php
+            $lbl_c = []; $dat_hum_c = []; $dat_rad_c = [];
+            foreach (array_reverse($mesures) as $m) { 
+                $lbl_c[] = date('H:i:s', strtotime($m['date_enregistrement'])); 
+                $dat_hum_c[] = $m['humidite_pourcent']; 
+                $dat_rad_c[] = isset($m['radiation_usv']) ? $m['radiation_usv'] : 0.1; 
+            }
+            ?>
+            const chartOptionsC = { maintainAspectRatio: false, responsive: true };
+
+            new Chart(document.getElementById('tabChartHumidC'), { 
+                type: 'line', 
+                data: { labels: <?= json_encode($lbl_c) ?>, datasets: [{ label: 'Humidité du sol (%)', data: <?= json_encode($dat_hum_c) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 }] }, 
+                options: chartOptionsC 
+            });
+
+            new Chart(document.getElementById('tabChartRadC'), { 
+                type: 'line', 
+                data: { labels: <?= json_encode($lbl_c) ?>, datasets: [{ label: 'Radiation (µSv/h)', data: <?= json_encode($dat_rad_c) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }] }, 
+                options: chartOptionsC 
+            });
+        </script>
+
+        <h3>Journal Complet des Données G7C</h3>
         <div class="table-responsive">
             <table>
                 <tr><th>Horodatage</th><th>Distance</th><th>Radiation</th><th>Humidité</th><th>Latitude</th><th>Longitude</th></tr>
                 <?php foreach ($mesures as $m): ?>
-                    <tr>
+                    <?php 
+                    // NOUVEAU : Calcul pour mettre la ligne en surbrillance orange si < 10cm
+                    $dist = floatval($m['distance_cm']);
+                    $estObstacle = ($dist < 10);
+                    $rowStyle = $estObstacle ? 'background-color: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b;' : '';
+                    ?>
+                    <tr style="<?= $rowStyle ?>">
                         <td><?= $m['date_enregistrement'] ?></td>
-                        <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
+                        <td>
+                            <strong style="<?= $estObstacle ? 'color: #d97706;' : '' ?>"><?= $m['distance_cm'] ?> cm</strong>
+                        </td>
                         <td style="color: <?= (isset($m['radiation_usv']) && $m['radiation_usv'] > 2) ? 'var(--danger)' : 'inherit' ?>;">
                             <strong><?= isset($m['radiation_usv']) ? $m['radiation_usv'] . ' µSv/h' : '--' ?></strong>
                         </td>
@@ -367,7 +398,6 @@ include 'header.php';
 
     <?php elseif ($view_group === 'D'): ?>
         <h3>Relevés Climatiques (Capteur DHT11)</h3>
-        
         <div class="chart-container" style="margin-bottom: 30px;">
             <canvas id="tabChartD" height="100"></canvas>
         </div>
@@ -375,23 +405,11 @@ include 'header.php';
             <?php
             $lbl_d = []; $dat_temp = []; $dat_hum = [];
             foreach (array_reverse($mesures) as $m) { 
-                $lbl_d[] = date('H:i:s', strtotime($m['timestamp'])); 
-                $dat_temp[] = $m['temperature']; 
-                $dat_hum[] = $m['humidity']; 
+                $lbl_d[] = date('H:i:s', strtotime($m['timestamp'])); $dat_temp[] = $m['temperature']; $dat_hum[] = $m['humidity']; 
             }
             ?>
-            new Chart(document.getElementById('tabChartD'), { 
-                type: 'line', 
-                data: { 
-                    labels: <?= json_encode($lbl_d) ?>, 
-                    datasets: [
-                        { label: 'Température (°C)', data: <?= json_encode($dat_temp) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 },
-                        { label: 'Humidité (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 }
-                    ] 
-                } 
-            });
+            new Chart(document.getElementById('tabChartD'), { type: 'line', data: { labels: <?= json_encode($lbl_d) ?>, datasets: [ { label: 'Température (°C)', data: <?= json_encode($dat_temp) ?>, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.3 }, { label: 'Humidité (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 } ] } });
         </script>
-
         <div class="table-responsive">
             <table>
                 <tr><th>Horodatage</th><th>Température</th><th>Humidité de l'air</th></tr>
