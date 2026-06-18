@@ -16,7 +16,7 @@ $all_g7b = [];
 $home_gas = null;
 $home_imu = null;
 $home_g7e = null;
-$home_g7d = null; // Nouveau G7D
+$home_g7d = null;
 $home_logs = [];
 
 try {
@@ -30,18 +30,13 @@ try {
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM G7E_audiofiles");
         $home_g7e = $stmt->fetch();
 
-        // Récupération IMU (G7B) pour la page d'accueil
         $stmt = $pdo->query("SELECT state FROM imu_readings_g7b ORDER BY timestamp DESC LIMIT 1");
         $home_imu = $stmt->fetch();
 
-        // Récupération G7D (Try/Catch séparé au cas où la table n'est pas encore créée)
         try {
             $stmt = $pdo->query("SELECT temperature, humidity, timestamp FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 1");
             $home_g7d = $stmt->fetch();
         } catch (\PDOException $e) { $home_g7d = null; }
-
-        $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 4");
-        $home_logs = $stmt->fetchAll();
 
         $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $all_g7c = $stmt_c_all->fetchAll();
@@ -52,13 +47,29 @@ try {
         $stmt_gas_all = $pdo->query("SELECT gas_value, created_at FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 20");
         $hist_gas = array_reverse($stmt_gas_all->fetchAll());
 
-        // ALERTE OBSTACLE (< 10cm) INJECTÉE DANS LE LOGBOOK
-        if (count($all_g7c) > 0 && floatval($all_g7c[0]['distance_cm']) <= 10) {
-            array_unshift($home_logs, [
-                'subject_line' => '🚨 URGENCE : Obstacle imminent à l\'avant détecté (<= 10 cm)',
-                'sent_at' => $all_g7c[0]['date_enregistrement']
-            ]);
+        // --- GESTION COMBINÉE DU LOGBOOK ---
+        $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 30");
+        $home_logs = $stmt->fetchAll();
+
+        // On injecte virtuellement toutes les alertes < 10cm du groupe G7C
+        if (!empty($all_g7c)) {
+            foreach ($all_g7c as $m) {
+                if (floatval($m['distance_cm']) <= 10) {
+                    $home_logs[] = [
+                        'subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)',
+                        'sent_at' => $m['date_enregistrement']
+                    ];
+                }
+            }
         }
+
+        // On trie le tableau fusionné par date (du plus récent au plus ancien)
+        usort($home_logs, function($a, $b) {
+            return strtotime($b['sent_at']) - strtotime($a['sent_at']);
+        });
+
+        // On garde uniquement les 15 derniers événements pour ne pas surcharger la page
+        $home_logs = array_slice($home_logs, 0, 15);
     }
     
     // ==========================================
@@ -76,7 +87,6 @@ try {
         $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'D') {
-        // NOUVEAU GROUPE G7D
         try {
             $stmt = $pdo->query("SELECT * FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 50");
             $mesures = $stmt->fetchAll();
@@ -98,16 +108,12 @@ include 'header.php';
 
 <style>
     .ha-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
-    
-    /* MODIFICATION: Les cartes sont devenues cliquables avec effet de survol */
     .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; text-decoration: none; color: inherit; display: block; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
     .ha-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
-    
     .ha-card-header { display: flex; align-items: center; gap: 12px; font-weight: bold; font-size: 1.05em; margin-bottom: 15px; }
     .ha-icon { font-size: 1.5em; background: #f1f5f9; padding: 8px; border-radius: 8px; }
     .ha-state { font-size: 1.8em; font-weight: 800; margin: 10px 0; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 20px; right: 20px; }
-    
     .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: #0f172a; color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 10px; position: relative; }
     .radar-car .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 160px; z-index: 2; }
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
@@ -132,7 +138,6 @@ include 'header.php';
     <?php if ($view_group === 'home'): ?>
         
         <div class="ha-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-            
             <a href="utilisateur.php?show=A" class="ha-card">
                 <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
                 <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
@@ -140,14 +145,12 @@ include 'header.php';
                 <div class="ha-state"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
                 <div style="font-size: 0.85em; color: var(--text-muted);">Cliquez pour l'historique gaz</div>
             </a>
-
             <a href="utilisateur.php?show=D" class="ha-card">
                 <div class="status-dot" style="background: var(--primary);"></div>
                 <div class="ha-card-header"><span class="ha-icon">🌡️</span> Groupe D (DHT11)</div>
                 <div class="ha-state"><?= $home_g7d ? htmlspecialchars($home_g7d['temperature']) . '°C' : '--' ?></div>
                 <div style="font-size: 0.85em; color: var(--text-muted);">Humidité : <?= $home_g7d ? htmlspecialchars($home_g7d['humidity']) . '%' : '--' ?></div>
             </a>
-
             <a href="utilisateur.php?show=E" class="ha-card">
                 <div class="status-dot" style="background: #4f46e5;"></div>
                 <div class="ha-card-header"><span class="ha-icon">🎵</span> Groupe E (MinIO)</div>
@@ -164,14 +167,11 @@ include 'header.php';
                     <?= $home_imu ? htmlspecialchars($home_imu['state']) : 'INCONNU' ?>
                 </span>
             </div>
-
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Avant (G7C)</div>
                 <div id="home-radar-avant" style="font-size: 2.2em; font-weight: bold; color: #10b981; transition: 0.3s;">-- cm</div>
             </div>
-            
             <div style="font-size: 5.5em; transform: rotate(0deg); filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); z-index: 2;">🚙</div>
-            
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Arrière (G7B)</div>
                 <div id="home-radar-arriere" style="font-size: 2.2em; font-weight: bold; color: #ef4444; transition: 0.3s;">--</div>
@@ -204,10 +204,15 @@ include 'header.php';
                 <h3 style="margin-top: 0; margin-bottom: 15px;">📋 Alertes & Logbook</h3>
                 <?php if (count($home_logs) > 0): ?>
                     <?php foreach ($home_logs as $log): ?>
+                        <?php 
+                        // On vérifie si la ligne contient un mot clé d'alerte pour l'afficher en rouge
+                        $subj = strtolower($log['subject_line']);
+                        $is_danger = str_contains($subj, 'danger') || str_contains($subj, 'urgence') || str_contains($subj, 'obstacle') || str_contains($subj, 'alert') || str_contains($subj, 'collision');
+                        ?>
                         <div class="logbook-item">
                             <div>
-                                <?php if (str_contains(strtolower($log['subject_line']), 'danger') || str_contains(strtolower($log['subject_line']), 'urgence')): ?>
-                                    <span style="color: var(--danger); font-weight: bold;">[DANGER]</span> 
+                                <?php if ($is_danger): ?>
+                                    <span style="color: var(--danger); font-weight: bold;">[ALERTE]</span> 
                                 <?php else: ?>
                                     <span style="color: var(--primary); font-weight: bold;">[INFO]</span> 
                                 <?php endif; ?>
@@ -225,7 +230,6 @@ include 'header.php';
         </div>
 
         <script>
-            // Script Radar G7C / G7B
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             
@@ -258,7 +262,6 @@ include 'header.php';
                 const distAvant = parseFloat(selectedRecord.distance_cm);
                 const radarAvantEl = document.getElementById('home-radar-avant');
                 
-                // ALERTE VISUELLE < 10cm
                 if (distAvant <= 10) {
                     radarAvantEl.style.color = 'var(--danger)';
                     radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>';
