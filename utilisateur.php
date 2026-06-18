@@ -16,6 +16,7 @@ $all_g7b = [];
 $home_gas = null;
 $home_imu = null;
 $home_g7e = null;
+$home_g7d = null; // Nouveau G7D
 $home_logs = [];
 
 try {
@@ -23,17 +24,25 @@ try {
     // 1. DASHBOARD GLOBAL (HOME)
     // ==========================================
     if ($view_group === 'home') {
-        // Relevé Gaz & Audio
         $stmt = $pdo->query("SELECT gas_value, danger_level FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 1");
         $home_gas = $stmt->fetch();
+        
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM G7E_audiofiles");
         $home_g7e = $stmt->fetch();
 
-        // Logbook (Événements)
+        // Récupération IMU (G7B) pour la page d'accueil
+        $stmt = $pdo->query("SELECT state FROM imu_readings_g7b ORDER BY timestamp DESC LIMIT 1");
+        $home_imu = $stmt->fetch();
+
+        // Récupération G7D (Try/Catch séparé au cas où la table n'est pas encore créée)
+        try {
+            $stmt = $pdo->query("SELECT temperature, humidity, timestamp FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 1");
+            $home_g7d = $stmt->fetch();
+        } catch (\PDOException $e) { $home_g7d = null; }
+
         $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 4");
         $home_logs = $stmt->fetchAll();
 
-        // Récupération complète pour le Radar Synchronisé et les Graphiques
         $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $all_g7c = $stmt_c_all->fetchAll();
         
@@ -43,10 +52,10 @@ try {
         $stmt_gas_all = $pdo->query("SELECT gas_value, created_at FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 20");
         $hist_gas = array_reverse($stmt_gas_all->fetchAll());
 
-        // INJECTION VIRTUELLE : Alerte si obstacle < 10cm sur la dernière mesure
-        if (count($all_g7c) > 0 && floatval($all_g7c[0]['distance_cm']) < 10) {
+        // ALERTE OBSTACLE (< 10cm) INJECTÉE DANS LE LOGBOOK
+        if (count($all_g7c) > 0 && floatval($all_g7c[0]['distance_cm']) <= 10) {
             array_unshift($home_logs, [
-                'subject_line' => 'DANGER : Obstacle imminent à l\'avant détecté (< 10 cm)',
+                'subject_line' => '🚨 URGENCE : Obstacle imminent à l\'avant détecté (<= 10 cm)',
                 'sent_at' => $all_g7c[0]['date_enregistrement']
             ]);
         }
@@ -66,9 +75,14 @@ try {
     } elseif ($view_group === 'C') {
         $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $mesures = $stmt->fetchAll();
-        $stmt_b_all = $pdo->query("SELECT distance_cm, date_evenement FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC");
-        $all_g7b = $stmt_b_all->fetchAll();
-        if (count($all_g7b) > 0) { $distance_arriere = $all_g7b[0]['distance_cm']; }
+    } elseif ($view_group === 'D') {
+        // NOUVEAU GROUPE G7D
+        try {
+            $stmt = $pdo->query("SELECT * FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 50");
+            $mesures = $stmt->fetchAll();
+        } catch (\PDOException $e) {
+            $db_error = "La table G7D n'existe pas encore. Exécutez la requête SQL fournie.";
+        }
     } elseif ($view_group === 'E') {
         $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
@@ -83,16 +97,19 @@ include 'header.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* Styles généraux */
     .ha-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
-    .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; }
+    
+    /* MODIFICATION: Les cartes sont devenues cliquables avec effet de survol */
+    .ha-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); position: relative; text-decoration: none; color: inherit; display: block; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .ha-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--primary); }
+    
     .ha-card-header { display: flex; align-items: center; gap: 12px; font-weight: bold; font-size: 1.05em; margin-bottom: 15px; }
     .ha-icon { font-size: 1.5em; background: #f1f5f9; padding: 8px; border-radius: 8px; }
     .ha-state { font-size: 1.8em; font-weight: 800; margin: 10px 0; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; top: 20px; right: 20px; }
     
-    .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: #0f172a; color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 10px; }
-    .radar-car .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 160px; }
+    .radar-car { display: flex; justify-content: center; align-items: center; gap: 40px; background: #0f172a; color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 10px; position: relative; }
+    .radar-car .sensor-box { text-align: center; background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 8px; min-width: 160px; z-index: 2; }
     .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow); }
     .logbook-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
 </style>
@@ -102,8 +119,9 @@ include 'header.php';
     <div class="group-tabs" style="margin-bottom: 30px;">
         <a href="utilisateur.php?show=home" class="tab-btn <?= $view_group === 'home' ? 'active' : '' ?>">🏠 Vue Générale</a>
         <a href="utilisateur.php?show=A" class="tab-btn <?= $view_group === 'A' ? 'active' : '' ?>">G7A (Gaz)</a>
-        <a href="utilisateur.php?show=B" class="tab-btn <?= $view_group === 'B' ? 'active' : '' ?>">G7B (Recul & IMU)</a>
-        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">G7C (Ultrason & GPS)</a>
+        <a href="utilisateur.php?show=B" class="tab-btn <?= $view_group === 'B' ? 'active' : '' ?>">G7B (Recul/IMU)</a>
+        <a href="utilisateur.php?show=C" class="tab-btn <?= $view_group === 'C' ? 'active' : '' ?>">G7C (Ultrason)</a>
+        <a href="utilisateur.php?show=D" class="tab-btn <?= $view_group === 'D' ? 'active' : '' ?>">G7D (Temp/Hum)</a>
         <a href="utilisateur.php?show=E" class="tab-btn <?= $view_group === 'E' ? 'active' : '' ?>">G7E (Audio)</a>
     </div>
 
@@ -114,29 +132,45 @@ include 'header.php';
     <?php if ($view_group === 'home'): ?>
         
         <div class="ha-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-            <div class="ha-card">
+            
+            <a href="utilisateur.php?show=A" class="ha-card">
                 <?php $gas_alert = ($home_gas && $home_gas['danger_level'] != '0'); ?>
                 <div class="status-dot" style="background: <?= $gas_alert ? 'var(--danger)' : 'var(--success)' ?>;"></div>
-                <div class="ha-card-header"><span class="ha-icon">💨</span> Capteur MQ135 (Gaz)</div>
+                <div class="ha-card-header"><span class="ha-icon">💨</span> Groupe A (MQ135)</div>
                 <div class="ha-state"><?= $home_gas ? $home_gas['gas_value'] . ' ppm' : '--' ?></div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">Statut : <?= $gas_alert ? '⚠️ Critique' : 'Air Nominal' ?></div>
-            </div>
-            <div class="ha-card">
+                <div style="font-size: 0.85em; color: var(--text-muted);">Cliquez pour l'historique gaz</div>
+            </a>
+
+            <a href="utilisateur.php?show=D" class="ha-card">
+                <div class="status-dot" style="background: var(--primary);"></div>
+                <div class="ha-card-header"><span class="ha-icon">🌡️</span> Groupe D (DHT11)</div>
+                <div class="ha-state"><?= $home_g7d ? htmlspecialchars($home_g7d['temperature']) . '°C' : '--' ?></div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">Humidité : <?= $home_g7d ? htmlspecialchars($home_g7d['humidity']) . '%' : '--' ?></div>
+            </a>
+
+            <a href="utilisateur.php?show=E" class="ha-card">
                 <div class="status-dot" style="background: #4f46e5;"></div>
-                <div class="ha-card-header"><span class="ha-icon">🎵</span> Serveur Audio MinIO</div>
+                <div class="ha-card-header"><span class="ha-icon">🎵</span> Groupe E (MinIO)</div>
                 <div class="ha-state"><?= $home_g7e ? $home_g7e['total'] : '0' ?> fichiers</div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">Stockage cloud actif</div>
-            </div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">Accéder au stockage audio</div>
+            </a>
         </div>
 
-        <h3 style="margin-top: 20px;">Radar d'approche (Capteurs synchronisés G7C + G7B)</h3>
+        <h3 style="margin-top: 20px;">Radar d'approche & État Inertiel (G7B & G7C)</h3>
         <div class="radar-car">
+            <div style="position: absolute; top: 15px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; font-size: 0.85em; z-index: 10;">
+                IMU (Centrale Inertielle) : 
+                <span style="color: <?= ($home_imu && $home_imu['state'] === 'COLLISION') ? 'var(--danger)' : '#10b981' ?>; font-weight: bold;">
+                    <?= $home_imu ? htmlspecialchars($home_imu['state']) : 'INCONNU' ?>
+                </span>
+            </div>
+
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Avant (G7C)</div>
                 <div id="home-radar-avant" style="font-size: 2.2em; font-weight: bold; color: #10b981; transition: 0.3s;">-- cm</div>
             </div>
             
-            <div style="font-size: 5.5em; transform: rotate(90deg); filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));">🚙</div>
+            <div style="font-size: 5.5em; transform: rotate(0deg); filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); z-index: 2;">🚙</div>
             
             <div class="sensor-box">
                 <div style="font-size: 0.85em; color: #94a3b8; text-transform: uppercase;">Arrière (G7B)</div>
@@ -166,13 +200,17 @@ include 'header.php';
                 <div id="homeMap" style="height: 300px; width: 100%; border-radius: 8px; z-index: 1;"></div>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" style="overflow-y: auto; max-height: 350px;">
                 <h3 style="margin-top: 0; margin-bottom: 15px;">📋 Alertes & Logbook</h3>
                 <?php if (count($home_logs) > 0): ?>
                     <?php foreach ($home_logs as $log): ?>
                         <div class="logbook-item">
                             <div>
-                                <span style="color: var(--danger); font-weight: bold;">[ALERTE]</span> 
+                                <?php if (str_contains(strtolower($log['subject_line']), 'danger') || str_contains(strtolower($log['subject_line']), 'urgence')): ?>
+                                    <span style="color: var(--danger); font-weight: bold;">[DANGER]</span> 
+                                <?php else: ?>
+                                    <span style="color: var(--primary); font-weight: bold;">[INFO]</span> 
+                                <?php endif; ?>
                                 <?= htmlspecialchars($log['subject_line']) ?>
                             </div>
                             <div style="color: var(--text-muted); font-size: 0.85em; white-space: nowrap; margin-left: 10px;">
@@ -187,7 +225,7 @@ include 'header.php';
         </div>
 
         <script>
-            // --- 1. GESTION DU RADAR ET DU SLIDER ---
+            // Script Radar G7C / G7B
             const rawDataHome = <?= json_encode($all_g7c) ?>;
             const rawDataBHome = <?= json_encode($all_g7b) ?>;
             
@@ -217,11 +255,11 @@ include 'header.php';
                 
                 document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
                 
-                // LOGIQUE D'ALERTE OBSTACLE (< 10cm)
                 const distAvant = parseFloat(selectedRecord.distance_cm);
                 const radarAvantEl = document.getElementById('home-radar-avant');
                 
-                if (distAvant < 10) {
+                // ALERTE VISUELLE < 10cm
+                if (distAvant <= 10) {
                     radarAvantEl.style.color = 'var(--danger)';
                     radarAvantEl.innerHTML = distAvant + ' cm <br><span style="font-size:0.4em; display:block; margin-top:5px; color:var(--danger);">⚠️ OBSTACLE !</span>';
                 } else {
@@ -229,12 +267,10 @@ include 'header.php';
                     radarAvantEl.innerHTML = distAvant + ' cm';
                 }
                 
-                // Radar Arrière
                 const closestB = getClosestBDistance(selectedRecord.date_enregistrement);
                 const unit = String(closestB).includes('>') ? '' : ' cm';
                 document.getElementById('home-radar-arriere').innerText = closestB + unit;
 
-                // Mise à jour de la carte
                 if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
                 const popup = `<b>Date:</b> ${selectedRecord.date_enregistrement}<br><b>Humidité:</b> ${selectedRecord.humidite_pourcent}%`;
                 currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]).addTo(mapHome).bindPopup(popup).openPopup();
@@ -245,35 +281,24 @@ include 'header.php';
             hSlider.addEventListener('input', function(e) { updateHomeDash(parseInt(e.target.value)); });
             if (rawDataHome.length > 0) { updateHomeDash(rawDataHome.length - 1); }
 
-            // --- 2. GESTION DES 3 GRAPHIQUES ---
             <?php
-            // Préparation des données pour les graphiques (20 dernières valeurs)
             $hist_c = array_reverse(array_slice($all_g7c, 0, 20));
             $lbl_hum = []; $dat_hum = [];
             foreach($hist_c as $c) { $lbl_hum[] = date('H:i', strtotime($c['date_enregistrement'])); $dat_hum[] = $c['humidite_pourcent']; }
-
             $lbl_gas = []; $dat_gas = [];
             foreach($hist_gas as $g) { $lbl_gas[] = date('H:i', strtotime($g['created_at'])); $dat_gas[] = $g['gas_value']; }
-
             $hist_b = array_reverse(array_slice($all_g7b, 0, 20));
             $lbl_rec = []; $dat_rec = [];
             foreach($hist_b as $b) { $lbl_rec[] = date('H:i', strtotime($b['date_evenement'])); $dat_rec[] = floatval(str_replace(['>','<'], '', $b['distance_cm'])); }
             ?>
 
-            new Chart(document.getElementById('chartHumid'), {
-                type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité du sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { plugins: { legend: { display: true } } }
-            });
-
-            new Chart(document.getElementById('chartGas'), {
-                type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux de Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] }
-            });
-
-            new Chart(document.getElementById('chartRecul'), {
-                type: 'bar', data: { labels: <?= json_encode($lbl_rec) ?>, datasets: [{ label: 'Distance Arrière (cm)', data: <?= json_encode($dat_rec) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] }
-            });
+            new Chart(document.getElementById('chartHumid'), { type: 'line', data: { labels: <?= json_encode($lbl_hum) ?>, datasets: [{ label: 'Humidité du sol (%)', data: <?= json_encode($dat_hum) ?>, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { plugins: { legend: { display: true } } } });
+            new Chart(document.getElementById('chartGas'), { type: 'line', data: { labels: <?= json_encode($lbl_gas) ?>, datasets: [{ label: 'Taux de Gaz (ppm)', data: <?= json_encode($dat_gas) ?>, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] } });
+            new Chart(document.getElementById('chartRecul'), { type: 'bar', data: { labels: <?= json_encode($lbl_rec) ?>, datasets: [{ label: 'Distance Arrière (cm)', data: <?= json_encode($dat_rec) ?>, backgroundColor: '#f59e0b', borderRadius: 4 }] } });
         </script>
 
     <?php elseif ($view_group === 'A'): ?>
+        <h3>Historique Complet des Gaz</h3>
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Type Gaz</th><th>Valeur</th><th>Danger</th></tr>
@@ -284,7 +309,7 @@ include 'header.php';
         </div>
 
     <?php elseif ($view_group === 'B'): ?>
-        <h3>Historique Recul Brut</h3>
+        <h3>Historique Recul & IMU Brut</h3>
         <div class="table-responsive">
             <table>
                 <tr><th>Date</th><th>Valeur Brute</th><th>Distance</th><th>Statut</th></tr>
@@ -307,6 +332,21 @@ include 'header.php';
                         <td><?= $m['altitude'] ?> m</td>
                         <td><?= $m['latitude'] ?></td>
                         <td><?= $m['longitude'] ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
+
+    <?php elseif ($view_group === 'D'): ?>
+        <h3>Relevés Climatiques (Capteur DHT11)</h3>
+        <div class="table-responsive">
+            <table>
+                <tr><th>Horodatage</th><th>Température</th><th>Humidité de l'air</th></tr>
+                <?php foreach ($mesures as $m): ?>
+                    <tr>
+                        <td><?= $m['timestamp'] ?></td>
+                        <td><strong style="color: #ef4444;"><?= $m['temperature'] ?> °C</strong></td>
+                        <td><strong style="color: #3b82f6;"><?= $m['humidity'] ?> %</strong></td>
                     </tr>
                 <?php endforeach; ?>
             </table>
