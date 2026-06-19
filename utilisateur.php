@@ -20,9 +20,6 @@ $home_g7d = null;
 $home_logs = [];
 
 try {
-    // ==========================================
-    // 1. REQUÊTES DASHBOARD GLOBAL (HOME)
-    // ==========================================
     if ($view_group === 'home') {
         $stmt = $pdo->query("SELECT gas_value, danger_level FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 1");
         $home_gas = $stmt->fetch();
@@ -47,7 +44,6 @@ try {
         $stmt_gas_all = $pdo->query("SELECT gas_value, created_at FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 20");
         $hist_gas = array_reverse($stmt_gas_all->fetchAll());
 
-        // LOGBOOK
         $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 30");
         $home_logs = $stmt->fetchAll();
 
@@ -64,10 +60,6 @@ try {
         usort($home_logs, function($a, $b) { return strtotime($b['sent_at']) - strtotime($a['sent_at']); });
         $home_logs = array_slice($home_logs, 0, 15);
     }
-    
-    // ==========================================
-    // 2. VUES DÉTAILLÉES
-    // ==========================================
     elseif ($view_group === 'A') {
         $stmt = $pdo->query("SELECT * FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
@@ -92,11 +84,8 @@ try {
     $db_error = "Erreur BDD : " . $e->getMessage();
 }
 
-// L'inclusion du header natif
 include 'header.php';
 ?>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="app-wrapper">
     <aside class="sidebar">
@@ -113,12 +102,10 @@ include 'header.php';
                 <div class="nav-title">Navigation</div>
                 <a href="utilisateur.php?show=home" class="nav-item <?= $view_group === 'home' ? 'active' : '' ?>">🏠 Home Dashboard</a>
             </div>
-            
             <div class="nav-section">
                 <div class="nav-title">Primary · G7C</div>
                 <a href="utilisateur.php?show=C" class="nav-item <?= $view_group === 'C' ? 'active' : '' ?>">📍 GPS, Rad & Sonar</a>
             </div>
-
             <div class="nav-section">
                 <div class="nav-title">Secondary Modules</div>
                 <a href="utilisateur.php?show=B" class="nav-item <?= $view_group === 'B' ? 'active' : '' ?>">🚨 Rear & Kin. (G7B)</a>
@@ -129,21 +116,15 @@ include 'header.php';
         </nav>
         
         <div class="sidebar-footer">
-            <a href="profile.php" class="nav-item" style="color: #2563eb; margin-bottom: 5px;">⚙️ Gérer mon profil</a>
+            <a href="profile.php" class="nav-item">⚙️ Gérer mon profil</a>
             <a href="connection.php?logout=1" class="btn-logout">❌ Terminate Session</a>
         </div>
     </aside>
 
     <main class="main-area">
-        
-        <?php if (isset($db_error)): ?>
-            <div style="background: #ef4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;"><?= htmlspecialchars($db_error) ?></div>
-        <?php endif; ?>
-
         <div id="flash-alert-banner" class="flash-alert-banner"></div>
 
         <?php if ($view_group === 'home'): ?>
-            
             <div class="page-title">
                 Rover Telemetry Hub
                 <button id="live-toggle" class="live-btn on" onclick="toggleLiveMode()">
@@ -155,27 +136,27 @@ include 'header.php';
                 <div class="tel-side">
                     <div class="tel-label">Rear Sonar</div>
                     <div class="tel-bar-bg" style="justify-content: flex-end;">
-                        <div id="bar-rear" class="tel-bar-fill" style="width: 0%; background: #e2e8f0;"></div>
+                        <div id="bar-rear" class="tel-bar-fill"></div>
                     </div>
                     <div id="val-rear" class="tel-value">-- cm</div>
-                    <div id="status-rear" class="tel-status" style="background:#f1f5f9; color:#64748b; border: 1px solid #cbd5e1;">WAITING</div>
+                    <div id="status-rear" class="tel-status">WAITING</div>
                 </div>
                 
                 <div class="tel-robot">
                     <div class="tel-robot-icon">🤖</div>
                     <div class="tel-robot-label">ROVER G7</div>
                     <div style="margin-top: 5px; font-size: 0.7em; color: #94a3b8;">
-                        IMU: <span id="imu-status" style="color: <?= ($home_imu && $home_imu['state'] === 'COLLISION') ? '#ef4444' : '#10b981' ?>; font-weight: bold;"><?= $home_imu ? htmlspecialchars($home_imu['state']) : '--' ?></span>
+                        IMU: <span id="imu-status">--</span>
                     </div>
                 </div>
 
                 <div class="tel-side">
                     <div class="tel-label">Front Sonar</div>
                     <div class="tel-bar-bg">
-                        <div id="bar-front" class="tel-bar-fill" style="width: 0%; background: #e2e8f0;"></div>
+                        <div id="bar-front" class="tel-bar-fill"></div>
                     </div>
                     <div id="val-front" class="tel-value">-- cm</div>
-                    <div id="status-front" class="tel-status" style="background:#f1f5f9; color:#64748b; border: 1px solid #cbd5e1;">WAITING</div>
+                    <div id="status-front" class="tel-status">WAITING</div>
                 </div>
             </div>
 
@@ -185,35 +166,34 @@ include 'header.php';
                         <div class="kpi-title" style="padding: 10px; margin-bottom: 0;">📍 Live Position & Radiation Path</div>
                         <div id="homeMap" class="map-container"></div>
                     </div>
-                    
                     <div class="slider-box">
                         <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; font-weight: 700;">
                             <span>Past</span><span id="home-slider-date" style="color: #3b82f6;">Syncing...</span><span>Now</span>
                         </div>
-                        <input type="range" id="home-time-slider" min="0" max="<?= count($all_g7c) - 1 ?>" value="<?= count($all_g7c) - 1 ?>" style="width: 100%; margin-top: 10px;">
+                        <input type="range" id="home-time-slider" class="slider-input-element" min="0" max="<?= count($all_g7c) - 1 ?>" value="<?= count($all_g7c) - 1 ?>">
                     </div>
                 </div>
 
                 <div>
-                    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                        <div class="kpi-card" style="flex: 1;">
+                    <div class="kpi-card-flex-container">
+                        <div class="kpi-card kpi-card-flex-item">
                             <div class="kpi-title">☢️ Radiation Level</div>
-                            <div id="kpi-rad" class="kpi-value">-- <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span></div>
+                            <div id="kpi-rad" class="kpi-value">--</div>
                         </div>
-                        <div class="kpi-card" style="flex: 1;">
+                        <div class="kpi-card kpi-card-flex-item">
                             <div class="kpi-title">🏔️ Altitude</div>
-                            <div id="kpi-alt" class="kpi-value">-- <span style="font-size: 0.5em; color: #94a3b8;">m</span></div>
+                            <div id="kpi-alt" class="kpi-value">--</div>
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                        <div class="kpi-card" style="flex: 1;">
+                    <div class="kpi-card-flex-container">
+                        <div class="kpi-card kpi-card-flex-item">
                             <div class="kpi-title">💨 Gas (G7A)</div>
                             <div class="kpi-value" style="font-size: 1.4em;">
                                 <?= $home_gas ? $home_gas['gas_value'] . ' PPM' : '--' ?>
                             </div>
                         </div>
-                        <div class="kpi-card" style="flex: 1;">
+                        <div class="kpi-card kpi-card-flex-item">
                             <div class="kpi-title">🌡️ Climate (G7D)</div>
                             <div class="kpi-value" style="font-size: 1.4em;">
                                 <?= $home_g7d ? $home_g7d['temperature'].'°C' : 'N/A' ?>
@@ -239,17 +219,13 @@ include 'header.php';
             </div>
 
             <script>
-                // --- LOGIQUE METIER JS (Live, Map, Slider, Bars) ---
                 let isLiveMode = localStorage.getItem('rover_live_mode') !== 'false';
                 const liveBtn = document.getElementById('live-toggle');
                 const liveText = document.getElementById('live-text');
 
                 function applyLiveUI() {
-                    if(isLiveMode) {
-                        liveBtn.className = "live-btn on"; liveText.innerText = "Live Sync";
-                    } else {
-                        liveBtn.className = "live-btn"; liveText.innerText = "History Mode";
-                    }
+                    if(isLiveMode) { liveBtn.className = "live-btn on"; liveText.innerText = "Live Sync"; } 
+                    else { liveBtn.className = "live-btn"; liveText.innerText = "History Mode"; }
                 }
 
                 function toggleLiveMode() {
@@ -306,12 +282,10 @@ include 'header.php';
                     let radColor = rad >= 400 ? '#ef4444' : (rad > 50 ? '#f59e0b' : '#10b981');
                     document.getElementById('kpi-rad').innerHTML = `<span style="color:${radColor}">${rad}</span> <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span>`;
 
-                    // GESTION DES BARRES (Front/Rear)
                     let distAvant = parseFloat(selectedRecord.distance_cm);
                     let closestB = getClosestBDistance(selectedRecord.date_enregistrement);
                     let distArriere = parseFloat(closestB);
 
-                    // Avant
                     let pctAvant = Math.min(100, (distAvant / 150) * 100); 
                     document.getElementById('val-front').innerText = distAvant + ' cm';
                     if (distAvant <= 10) {
@@ -324,7 +298,6 @@ include 'header.php';
                         document.getElementById('status-front').innerText = "✅ CLEAR";
                     }
 
-                    // Arrière
                     document.getElementById('val-rear').innerText = isNaN(distArriere) ? '--' : distArriere + ' cm';
                     if (isNaN(distArriere)) {
                         document.getElementById('bar-rear').style.cssText = `width: 0%;`;
@@ -343,7 +316,6 @@ include 'header.php';
                         }
                     }
 
-                    // GESTION FLASH ALERT GLOBALE
                     let alertBanner = document.getElementById('flash-alert-banner');
                     let msgs = [];
                     if(distAvant <= 10) msgs.push(`COLLISION IMMINENTE (${distAvant} cm)`);
@@ -355,7 +327,6 @@ include 'header.php';
                         alertBanner.style.display = 'none';
                     }
 
-                    // CARTE
                     if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
                     let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🤖</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
                     currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], {icon: customIcon}).addTo(mapHome);
@@ -385,29 +356,31 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'C'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Primary Sensor Array (G7C)</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div class="page-title">Primary Sensor Array (G7C)</div>
+            <div class="chart-grid-2x2">
                 <div class="kpi-card"><canvas id="tabChartHumidC" height="150"></canvas></div>
                 <div class="kpi-card"><canvas id="tabChartRadC" height="150"></canvas></div>
             </div>
             <div class="kpi-card">
-                <table>
-                    <tr><th>Time</th><th>Front Dist.</th><th>Radiation</th><th>Alt</th><th>Hum</th><th>GPS</th></tr>
-                    <?php foreach ($mesures as $m): ?>
-                        <?php 
-                        $d = floatval($m['distance_cm']); $r = floatval($m['radiation_usv']);
-                        $s = $r >= 400 ? 'row-mortal' : ($d < 10 ? 'row-warning' : '');
-                        ?>
-                        <tr class="<?= $s ?>">
-                            <td><?= $m['date_enregistrement'] ?></td>
-                            <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
-                            <td><strong><?= $m['radiation_usv'] ?> mSv/h</strong></td>
-                            <td><?= $m['altitude'] ?> m</td>
-                            <td><?= $m['humidite_pourcent'] ?> %</td>
-                            <td style="color:#94a3b8; font-size:0.9em;"><?= $m['latitude'] ?>, <?= $m['longitude'] ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <tr><th>Time</th><th>Front Dist.</th><th>Radiation</th><th>Alt</th><th>Hum</th><th>GPS</th></tr>
+                        <?php foreach ($mesures as $m): ?>
+                            <?php 
+                            $d = floatval($m['distance_cm']); $r = floatval($m['radiation_usv']);
+                            $s = $r >= 400 ? 'row-mortal' : ($d < 10 ? 'row-warning' : '');
+                            ?>
+                            <tr class="<?= $s ?>">
+                                <td><?= $m['date_enregistrement'] ?></td>
+                                <td><strong><?= $m['distance_cm'] ?> cm</strong></td>
+                                <td><strong><?= $m['radiation_usv'] ?> mSv/h</strong></td>
+                                <td><?= $m['altitude'] ?> m</td>
+                                <td><?= $m['humidite_pourcent'] ?> %</td>
+                                <td style="color:#94a3b8; font-size:0.9em;"><?= $m['latitude'] ?>, <?= $m['longitude'] ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             </div>
             <script>
                 <?php
@@ -419,18 +392,20 @@ include 'header.php';
             </script>
         
         <?php elseif ($view_group === 'A'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Gas & Environment (G7A)</div>
+            <div class="page-title">Gas & Environment (G7A)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartA" height="80"></canvas></div>
             <div class="kpi-card">
-                <table>
-                    <tr><th>Time</th><th>Gas Type</th><th>Value</th><th>Status</th></tr>
-                    <?php foreach ($mesures as $m): ?>
-                        <tr class="<?= $m['danger_level'] != '0' ? 'row-mortal' : '' ?>">
-                            <td><?= $m['created_at'] ?></td><td><?= $m['gas_type'] ?></td><td><strong><?= $m['gas_value'] ?> ppm</strong></td>
-                            <td><?= $m['danger_level'] != '0' ? '⚠️ DANGER' : '✅ SAFE' ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <tr><th>Time</th><th>Gas Type</th><th>Value</th><th>Status</th></tr>
+                        <?php foreach ($mesures as $m): ?>
+                            <tr class="<?= $m['danger_level'] != '0' ? 'row-mortal' : '' ?>">
+                                <td><?= $m['created_at'] ?></td><td><?= $m['gas_type'] ?></td><td><strong><?= $m['gas_value'] ?> ppm</strong></td>
+                                <td><?= $m['danger_level'] != '0' ? '⚠️ DANGER' : '✅ SAFE' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             </div>
             <script>
                 <?php $lbl_a = []; $dat_a = []; foreach (array_reverse($mesures) as $m) { $lbl_a[] = date('H:i', strtotime($m['created_at'])); $dat_a[] = $m['gas_value']; } ?>
@@ -438,18 +413,20 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'B'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Kinetic Overview (G7B)</div>
+            <div class="page-title">Kinetic Overview (G7B)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartB" height="80"></canvas></div>
             <div class="kpi-card">
-                <table>
-                    <tr><th>Time</th><th>Raw Value</th><th>Distance</th><th>Status</th></tr>
-                    <?php foreach ($mesures as $m): ?>
-                        <tr class="<?= $m['statut'] === 'alerte collision' ? 'row-mortal' : '' ?>">
-                            <td><?= $m['date_evenement'] ?></td><td><?= $m['valeur_brute'] ?></td><td><?= $m['distance_cm'] ?> cm</td>
-                            <td><?= htmlspecialchars($m['statut']) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <tr><th>Time</th><th>Raw Value</th><th>Distance</th><th>Status</th></tr>
+                        <?php foreach ($mesures as $m): ?>
+                            <tr class="<?= $m['statut'] === 'alerte collision' ? 'row-mortal' : '' ?>">
+                                <td><?= $m['date_evenement'] ?></td><td><?= $m['valeur_brute'] ?></td><td><?= $m['distance_cm'] ?> cm</td>
+                                <td><?= htmlspecialchars($m['statut']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             </div>
             <script>
                 <?php $lbl_b = []; $dat_b = []; foreach (array_reverse($mesures) as $m) { $lbl_b[] = date('H:i', strtotime($m['date_evenement'])); $dat_b[] = floatval(str_replace(['>','<'], '', $m['distance_cm'])); } ?>
@@ -457,18 +434,20 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'D'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Atmosphere (G7D)</div>
+            <div class="page-title">Atmosphere (G7D)</div>
             <?php if (count($mesures) === 0): ?>
-                <div style="padding: 40px; text-align: center; color: #94a3b8;">No data received from G7D.</div>
+                <div class="kpi-card" style="text-align: center; color: #94a3b8; padding: 40px;">No data received from G7D.</div>
             <?php else: ?>
                 <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartD" height="80"></canvas></div>
                 <div class="kpi-card">
-                    <table>
-                        <tr><th>Time</th><th>Temperature</th><th>Humidity</th></tr>
-                        <?php foreach ($mesures as $m): ?>
-                            <tr><td><?= $m['timestamp'] ?></td><td style="color:#ef4444; font-weight:bold;"><?= $m['temperature'] ?> °C</td><td style="color:#3b82f6; font-weight:bold;"><?= $m['humidity'] ?> %</td></tr>
-                        <?php endforeach; ?>
-                    </table>
+                    <div class="table-responsive">
+                        <table>
+                            <tr><th>Time</th><th>Temperature</th><th>Humidity</th></tr>
+                            <?php foreach ($mesures as $m): ?>
+                                <tr><td><?= $m['timestamp'] ?></td><td style="color:#ef4444; font-weight:bold;"><?= $m['temperature'] ?> °C</td><td style="color:#3b82f6; font-weight:bold;"><?= $m['humidity'] ?> %</td></tr>
+                            <?php endforeach; ?>
+                        </table>
+                    </div>
                 </div>
                 <script>
                     <?php $lbl_d = []; $dat_t = []; $dat_h = []; foreach (array_reverse($mesures) as $m) { $lbl_d[] = date('H:i', strtotime($m['timestamp'])); $dat_t[] = $m['temperature']; $dat_h[] = $m['humidity']; } ?>
@@ -477,20 +456,21 @@ include 'header.php';
             <?php endif; ?>
 
         <?php elseif ($view_group === 'E'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Audio Feed (G7E)</div>
+            <div class="page-title">Audio Feed (G7E)</div>
             <div class="kpi-card">
-                <table>
-                    <tr><th>Upload Time</th><th>Filename</th><th>Playback</th><th>Size</th></tr>
-                    <?php foreach ($mesures as $m): ?>
-                        <tr>
-                            <td><?= date('d/m H:i', strtotime($m['uploadedAt'])) ?></td><td><strong><?= htmlspecialchars($m['filename']) ?></strong></td>
-                            <td><audio controls preload="none" style="height: 35px;"><source src="http://178.33.122.21:9000/<?= $m['minioBucket'] ?>/<?= $m['minioPath'] ?>" type="audio/wav"></audio></td>
-                            <td><?= $m['fileSize'] ? round($m['fileSize']/(1024*1024), 2) . " MB" : "0 MB" ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
+                <div class="table-responsive">
+                    <table>
+                        <tr><th>Upload Time</th><th>Filename</th><th>Playback</th><th>Size</th></tr>
+                        <?php foreach ($mesures as $m): ?>
+                            <tr>
+                                <td><?= date('d/m H:i', strtotime($m['uploadedAt'])) ?></td><td><strong><?= htmlspecialchars($m['filename']) ?></strong></td>
+                                <td><audio controls preload="none" style="height: 35px;"><source src="http://178.33.122.21:9000/<?= $m['minioBucket'] ?>/<?= $m['minioPath'] ?>" type="audio/wav"></audio></td>
+                                <td><?= $m['fileSize'] ? round($m['fileSize']/(1024*1024), 2) . " MB" : "0 MB" ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
             </div>
         <?php endif; ?>
-
     </main>
 </div>
