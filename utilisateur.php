@@ -127,7 +127,7 @@ include 'header.php';
     .sidebar-header .subtitle { font-size: 0.85em; color: #10b981; display: flex; align-items: center; gap: 6px; font-weight: 600; }
     .sidebar-header .subtitle::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; }
     
-    .sidebar-nav { padding: 10px 0; flex: 1; overflow-y: auto; }
+    .sidebar-nav { padding: 10px 0; flex: 1; overflow-y: auto; display: block; }
     .nav-section { margin-bottom: 25px; }
     .nav-title { font-size: 0.7em; text-transform: uppercase; color: #94a3b8; font-weight: 800; padding: 0 20px; margin-bottom: 10px; letter-spacing: 1px; }
     .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px 10px 16px; color: #475569; text-decoration: none; font-weight: 600; font-size: 0.95em; transition: 0.2s; border-left: 4px solid transparent; }
