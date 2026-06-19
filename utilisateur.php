@@ -38,38 +38,44 @@ try {
             $home_g7d = $stmt->fetch();
         } catch (\PDOException $e) { $home_g7d = null; }
 
-        // ECO-CONCEPTION : On limite la carte et le slider aux 150 dernières positions maximum
-        $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC LIMIT 150");
+        $stmt_c_all = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $all_g7c = $stmt_c_all->fetchAll();
         
-        $stmt_b_all = $pdo->query("SELECT distance_cm, date_evenement FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC LIMIT 150");
+        $stmt_b_all = $pdo->query("SELECT distance_cm, date_evenement FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC");
         $all_g7b = $stmt_b_all->fetchAll();
 
-        // LOGBOOK : Limité aux 15 dernières alertes
-        $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 15");
+        $stmt_gas_all = $pdo->query("SELECT gas_value, created_at FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 20");
+        $hist_gas = array_reverse($stmt_gas_all->fetchAll());
+
+        // LOGBOOK
+        $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 30");
         $home_logs = $stmt->fetchAll();
+
+        usort($home_logs, function($a, $b) { return strtotime($b['sent_at']) - strtotime($a['sent_at']); });
+        $home_logs = array_slice($home_logs, 0, 15);
     }
     
     // ==========================================
-    // 2. VUES DÉTAILLÉES (LIMITÉES POUR GRAPHIQUES)
+    // 2. VUES DÉTAILLÉES
     // ==========================================
     elseif ($view_group === 'A') {
-        $stmt = $pdo->query("SELECT * FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 100");
+        $stmt = $pdo->query("SELECT * FROM gas_measures_g7a ORDER BY created_at DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'B') {
-        $stmt = $pdo->query("SELECT * FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC LIMIT 100");
+        $stmt = $pdo->query("SELECT * FROM historique_capteur_g7b_recul ORDER BY date_evenement DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
+        $stmt_imu = $pdo->query("SELECT * FROM imu_readings_g7b ORDER BY timestamp DESC LIMIT 50");
+        $mesures_imu = $stmt_imu->fetchAll();
     } elseif ($view_group === 'C') {
-        $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC LIMIT 100");
+        $stmt = $pdo->query("SELECT * FROM mesures_capteurs_g7c ORDER BY date_enregistrement DESC");
         $mesures = $stmt->fetchAll();
     } elseif ($view_group === 'D') {
         try {
-            $stmt = $pdo->query("SELECT * FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 100");
+            $stmt = $pdo->query("SELECT * FROM mesures_dht11_g7d ORDER BY timestamp DESC LIMIT 50");
             $mesures = $stmt->fetchAll();
         } catch (\PDOException $e) { $db_error = "La table G7D n'existe pas encore."; }
     } elseif ($view_group === 'E') {
-        // L'audio prend beaucoup de place, on limite à 10 fichiers
-        $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 10");
+        $stmt = $pdo->query("SELECT * FROM G7E_audiofiles ORDER BY uploadedAt DESC LIMIT 50");
         $mesures = $stmt->fetchAll();
     }
 } catch (\PDOException $e) {
@@ -151,9 +157,6 @@ include 'header.php';
     th { background: #f8fafc; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.8em; letter-spacing: 1px; }
     .row-mortal { background-color: #fef2f2 !important; border-left: 4px solid #ef4444; color: #7f1d1d; }
     .row-warning { background-color: #fffbeb !important; border-left: 4px solid #f59e0b; color: #92400e; }
-    
-    /* Bouton toggle pour les tableaux éco */
-    .eco-badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 0.75em; font-weight: 800; border: 1px solid #bbf7d0; display: inline-block; }
 </style>
 
 <div class="app-wrapper">
@@ -306,7 +309,9 @@ include 'header.php';
             </div>
 
             <script>
-                // --- LOGIQUE KILL SWITCH ---
+                // ==========================================
+                // LOGIQUE KILL SWITCH
+                // ==========================================
                 let currentKsState = 0;
 
                 fetch('api_killswitch.php')
@@ -316,6 +321,7 @@ include 'header.php';
 
                 function toggleKillSwitch() {
                     let newState = currentKsState === 1 ? 0 : 1; 
+                    
                     if(newState === 0 && !confirm("Voulez-vous vraiment redémarrer le robot (Désactiver le Kill Switch) ?")) return;
 
                     fetch('api_killswitch.php', {
@@ -324,7 +330,9 @@ include 'header.php';
                         body: JSON.stringify({ etat: newState })
                     })
                     .then(r => r.json())
-                    .then(data => { if(data.success) updateKsUI(data.etat); });
+                    .then(data => {
+                        if(data.success) updateKsUI(data.etat);
+                    });
                 }
 
                 function updateKsUI(state) {
@@ -352,7 +360,9 @@ include 'header.php';
                     }
                 }
 
-                // --- LOGIQUE TÉLÉMÉTRIE ---
+                // ==========================================
+                // LOGIQUE TÉLÉMÉTRIE (Live, Map, Slider)
+                // ==========================================
                 let isLiveMode = localStorage.getItem('rover_live_mode') !== 'false';
                 const liveBtn = document.getElementById('live-toggle');
                 const liveText = document.getElementById('live-text');
@@ -394,25 +404,44 @@ include 'header.php';
                     }
                 });
 
+                // ==========================================
+                // RECHERCHE DU RADAR ARRIÈRE (AVEC FALLBACK)
+                // ==========================================
                 function getClosestBDistance(targetDateStr) {
                     if (!rawDataBHome || rawDataBHome.length === 0) return '--';
+                    
                     const targetTime = new Date(targetDateStr.replace(' ', 'T')).getTime();
+                    
+                    // Fallback de sécurité : on stocke la toute dernière valeur connue par défaut
                     let closestVal = rawDataBHome[0].distance_cm; 
                     let minDiff = Infinity;
                     
                     for (let i = 0; i < rawDataBHome.length; i++) {
                         const bTime = new Date(rawDataBHome[i].date_evenement.replace(' ', 'T')).getTime();
                         const diff = Math.abs(bTime - targetTime);
-                        if (diff < minDiff) { minDiff = diff; closestVal = rawDataBHome[i].distance_cm; }
+                        if (diff < minDiff) { 
+                            minDiff = diff; 
+                            closestVal = rawDataBHome[i].distance_cm; 
+                        }
                     }
-                    if (minDiff > 10000) return rawDataBHome[0].distance_cm; 
+                    
+                    // Si le décalage de temps est supérieur à 10 secondes (capteur déconnecté ou asynchrone)
+                    // on retourne quoiqu'il arrive la dernière valeur enregistrée dans la BDD
+                    if (minDiff > 10000) { 
+                        return rawDataBHome[0].distance_cm; 
+                    }
+                    
                     return closestVal;
                 }
 
+                // ==========================================
+                // MISE À JOUR GLOBALE DE L'INTERFACE D'ACCUEIL
+                // ==========================================
                 function updateHomeDash(index) {
                     const selectedRecord = rawDataHome[(rawDataHome.length - 1) - index]; 
                     if (!selectedRecord) return;
                     
+                    // 1. KPIs Simples (Date, Altitude, Radiation)
                     document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
                     document.getElementById('kpi-alt').innerHTML = selectedRecord.altitude + ' <span style="font-size: 0.5em; color: #94a3b8;">m</span>';
                     
@@ -420,6 +449,7 @@ include 'header.php';
                     let radColor = rad >= 400 ? '#ef4444' : (rad > 50 ? '#f59e0b' : '#10b981');
                     document.getElementById('kpi-rad').innerHTML = `<span style="color:${radColor}">${rad}</span> <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span>`;
 
+                    // 2. RADAR AVANT (G7C)
                     let distAvant = parseFloat(selectedRecord.distance_cm);
                     let pctAvant = Math.min(100, (distAvant / 150) * 100); 
                     
@@ -434,7 +464,10 @@ include 'header.php';
                         document.getElementById('status-front').innerText = "✅ CLEAR";
                     }
 
+                    // 3. RADAR ARRIÈRE (G7B)
                     let closestB = getClosestBDistance(selectedRecord.date_enregistrement);
+                    
+                    // Nettoyage strict ("<" ou ">" supprimés pour éviter les bugs mathématiques)
                     let distRaw = closestB.toString().replace('>', '').replace('<', '');
                     let distArriere = parseFloat(distRaw);
 
@@ -457,8 +490,10 @@ include 'header.php';
                         }
                     }
 
+                    // 4. BANNIÈRE FLASH D'ALERTE GLOBALE
                     let alertBanner = document.getElementById('flash-alert-banner');
                     let msgs = [];
+                    
                     if (distAvant <= 10) msgs.push(`COLLISION AVANT IMMINENTE (${distAvant} cm)`);
                     if (!isNaN(distArriere) && distArriere <= 10) msgs.push(`COLLISION ARRIÈRE IMMINENTE (${distArriere} cm)`);
                     if (rad >= 400) msgs.push(`RADIATION MORTELLE (${rad} mSv/h)`);
@@ -470,10 +505,22 @@ include 'header.php';
                         alertBanner.style.display = 'none';
                     }
 
-                    if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
+                    // 5. CARTE GPS ET POSITION DU ROBOT
+                    if (currentHomeMarker) { 
+                        mapHome.removeLayer(currentHomeMarker); 
+                    }
+                    
                     if (selectedRecord.latitude && selectedRecord.longitude) {
-                        let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🤖</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
-                        currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], {icon: customIcon}).addTo(mapHome);
+                        let customIcon = L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: "<div style='font-size:24px;'>🤖</div>", 
+                            iconSize: [30, 30], 
+                            iconAnchor: [15, 15] 
+                        });
+                        currentHomeMarker = L.marker(
+                            [parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], 
+                            {icon: customIcon}
+                        ).addTo(mapHome);
                         mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
                     }
                 }
@@ -486,21 +533,38 @@ include 'header.php';
                 
                 if (rawDataHome.length > 0) { updateHomeDash(rawDataHome.length - 1); }
 
+                // ==========================================
+                // RAFRAÎCHISSEMENT TEMPS RÉEL (CORRIGÉ)
+                // ==========================================
                 setInterval(() => {
                     if (isLiveMode) {
-                        fetch('api_get_latest_measures.php').then(res => res.json()).then(data => {
+                        fetch('api_get_latest_measures.php')
+                        .then(res => res.json())
+                        .then(data => {
                             let hasNewData = false;
+
+                            // 1. Mise à jour de l'historique G7C (Avant)
                             if (data.g7c && rawDataHome.length > 0 && data.g7c.date_enregistrement !== rawDataHome[0].date_enregistrement) {
-                                rawDataHome.unshift(data.g7c); hasNewData = true;
+                                rawDataHome.unshift(data.g7c);
+                                hasNewData = true;
                             }
+                            
+                            // 2. Mise à jour de l'historique G7B (Arrière)
                             if (data.g7b && rawDataBHome.length > 0 && data.g7b.date_evenement !== rawDataBHome[0].date_evenement) {
-                                rawDataBHome.unshift(data.g7b); hasNewData = true;
+                                rawDataBHome.unshift(data.g7b);
+                                hasNewData = true;
                             }
 
+                            // 3. MISE À JOUR DIRECTE DE L'INTERFACE (Indépendante)
+                            
+                            // --> Affichage direct du radar ARRIÈRE (G7B)
                             if (data.g7b) {
+                                // Nettoyage si la donnée contient ">" ou "<"
                                 let distRaw = data.g7b.distance_cm.toString().replace('>', '').replace('<', '');
                                 let distArriere = parseFloat(distRaw);
+                                
                                 document.getElementById('val-rear').innerText = isNaN(distArriere) ? '--' : distArriere + ' cm';
+                                
                                 if (!isNaN(distArriere)) {
                                     let pctArriere = Math.min(100, (distArriere / 150) * 100);
                                     if (distArriere <= 10) {
@@ -515,10 +579,13 @@ include 'header.php';
                                 }
                             }
 
+                            // --> Affichage direct du radar AVANT (G7C)
                             if (data.g7c) {
                                 let distAvant = parseFloat(data.g7c.distance_cm);
                                 let pctAvant = Math.min(100, (distAvant / 150) * 100);
+                                
                                 document.getElementById('val-front').innerText = distAvant + ' cm';
+                                
                                 if (distAvant <= 10) {
                                     document.getElementById('bar-front').style.cssText = `width: ${pctAvant}%; background: #ef4444;`;
                                     document.getElementById('status-front').className = "tel-status status-danger";
@@ -530,17 +597,19 @@ include 'header.php';
                                 }
                             }
 
+                            // On décale le slider temporel seulement si une nouveauté est détectée
                             if (hasNewData) {
-                                hSlider.max = rawDataHome.length - 1; hSlider.value = rawDataHome.length - 1;
+                                hSlider.max = rawDataHome.length - 1; 
+                                hSlider.value = rawDataHome.length - 1;
                             }
-                        }).catch(e => console.log(e));
+
+                        }).catch(e => console.log("Erreur API Live:", e));
                     }
                 }, 3000);
             </script>
 
         <?php elseif ($view_group === 'C'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Primary Sensor Array (G7C) <span class="eco-badge">🌿 Éco-Mode Activé</span></div>
-            <p style="color: #64748b; font-size: 0.9em;">Afin d'économiser la bande passante et la mémoire, le graphique affiche les 100 dernières valeurs et le tableau liste uniquement les alertes critiques.</p>
+            <div class="page-title" style="margin-bottom: 20px;">Primary Sensor Array (G7C)</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="kpi-card"><canvas id="tabChartHumidC" height="150"></canvas></div>
                 <div class="kpi-card"><canvas id="tabChartRadC" height="150"></canvas></div>
@@ -550,13 +619,8 @@ include 'header.php';
                     <tr><th>Time</th><th>Front Dist.</th><th>Radiation</th><th>Alt</th><th>Hum</th><th>GPS</th></tr>
                     <?php foreach ($mesures as $m): ?>
                         <?php 
-                        $d = floatval($m['distance_cm']); 
-                        $r = floatval($m['radiation_usv']);
-                        
-                        // ECO-FILTRE : On passe à l'itération suivante si ce n'est pas une alerte (ni proche, ni radioactif)
-                        if ($d > 10 && $r < 400) continue; 
-                        
-                        $s = $r >= 400 ? 'row-mortal' : 'row-warning';
+                        $d = floatval($m['distance_cm']); $r = floatval($m['radiation_usv']);
+                        $s = $r >= 400 ? 'row-mortal' : ($d < 10 ? 'row-warning' : '');
                         ?>
                         <tr class="<?= $s ?>">
                             <td><?= $m['date_enregistrement'] ?></td>
@@ -579,20 +643,15 @@ include 'header.php';
             </script>
         
         <?php elseif ($view_group === 'A'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Gas & Environment (G7A) <span class="eco-badge">🌿 Éco-Mode Activé</span></div>
-            <p style="color: #64748b; font-size: 0.9em;">Seules les alertes sur le gaz sont remontées dans le tableau.</p>
+            <div class="page-title" style="margin-bottom: 20px;">Gas & Environment (G7A)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartA" height="80"></canvas></div>
             <div class="kpi-card">
                 <table>
                     <tr><th>Time</th><th>Gas Type</th><th>Value</th><th>Status</th></tr>
                     <?php foreach ($mesures as $m): ?>
-                        <?php 
-                        // ECO-FILTRE : Si le danger est de niveau 0 (tout va bien), on ne génère pas de HTML
-                        if ($m['danger_level'] == '0') continue; 
-                        ?>
-                        <tr class="row-mortal">
+                        <tr class="<?= $m['danger_level'] != '0' ? 'row-mortal' : '' ?>">
                             <td><?= $m['created_at'] ?></td><td><?= $m['gas_type'] ?></td><td><strong><?= $m['gas_value'] ?> ppm</strong></td>
-                            <td>⚠️ DANGER</td>
+                            <td><?= $m['danger_level'] != '0' ? '⚠️ DANGER' : '✅ SAFE' ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </table>
@@ -603,19 +662,13 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'B'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Kinetic Overview (G7B) <span class="eco-badge">🌿 Éco-Mode Activé</span></div>
-            <p style="color: #64748b; font-size: 0.9em;">Le tableau masque les valeurs sécurisées pour se concentrer sur les alertes de collision.</p>
+            <div class="page-title" style="margin-bottom: 20px;">Kinetic Overview (G7B)</div>
             <div class="kpi-card" style="margin-bottom: 20px;"><canvas id="tabChartB" height="80"></canvas></div>
             <div class="kpi-card">
                 <table>
                     <tr><th>Time</th><th>Raw Value</th><th>Distance</th><th>Status</th></tr>
                     <?php foreach ($mesures as $m): ?>
-                        <?php 
-                        $d_arriere = floatval(str_replace(['>','<'], '', $m['distance_cm']));
-                        // ECO-FILTRE : On n'affiche que si la distance est critique ou le statut en alerte
-                        if ($m['statut'] !== 'alerte collision' && $d_arriere > 10) continue; 
-                        ?>
-                        <tr class="row-mortal">
+                        <tr class="<?= $m['statut'] === 'alerte collision' ? 'row-mortal' : '' ?>">
                             <td><?= $m['date_evenement'] ?></td><td><?= $m['valeur_brute'] ?></td><td><?= $m['distance_cm'] ?> cm</td>
                             <td><?= htmlspecialchars($m['statut']) ?></td>
                         </tr>
@@ -628,8 +681,7 @@ include 'header.php';
             </script>
 
         <?php elseif ($view_group === 'D'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Atmosphere (G7D) <span class="eco-badge">🌿 Éco-Mode Activé</span></div>
-            <p style="color: #64748b; font-size: 0.9em;">Affichage des relevés extrêmes (Température > 35°C ou < 5°C, Humidité très élevée/basse).</p>
+            <div class="page-title" style="margin-bottom: 20px;">Atmosphere (G7D)</div>
             <?php if (count($mesures) === 0): ?>
                 <div style="padding: 40px; text-align: center; color: #94a3b8;">No data received from G7D.</div>
             <?php else: ?>
@@ -638,17 +690,7 @@ include 'header.php';
                     <table>
                         <tr><th>Time</th><th>Temperature</th><th>Humidity</th></tr>
                         <?php foreach ($mesures as $m): ?>
-                            <?php 
-                            // ECO-FILTRE Climatique
-                            $temp = floatval($m['temperature']);
-                            $hum = floatval($m['humidity']);
-                            if ($temp > 5 && $temp < 35 && $hum > 20 && $hum < 80) continue; 
-                            ?>
-                            <tr class="row-warning">
-                                <td><?= $m['timestamp'] ?></td>
-                                <td><strong><?= $m['temperature'] ?> °C</strong></td>
-                                <td><strong><?= $m['humidity'] ?> %</strong></td>
-                            </tr>
+                            <tr><td><?= $m['timestamp'] ?></td><td style="color:#ef4444; font-weight:bold;"><?= $m['temperature'] ?> °C</td><td style="color:#3b82f6; font-weight:bold;"><?= $m['humidity'] ?> %</td></tr>
                         <?php endforeach; ?>
                     </table>
                 </div>
@@ -659,62 +701,62 @@ include 'header.php';
             <?php endif; ?>
 
         <?php elseif ($view_group === 'E'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">🎙️ Audio Feed (G7E) <span class="eco-badge">🌿 Éco-Mode Activé</span></div>
-            <p style="color: #64748b; font-size: 0.9em;">Pour économiser la bande passante, seuls les 10 derniers enregistrements sont chargés.</p>
-            <?php if (count($mesures) === 0): ?>
-                <div style="padding: 40px; text-align: center; color: #94a3b8; background: white; border-radius: 16px; border: 1px solid #e2e8f0;">
-                    Aucun enregistrement audio disponible pour le moment.
-                </div>
-            <?php else: ?>
-                <div class="kpi-card">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <th>Date d'upload</th>
-                            <th>Fichier Audio</th>
-                            <th>Durée</th>
-                            <th>Taille</th>
-                            <th>Lecture</th>
-                        </tr>
-                        <?php foreach ($mesures as $m): ?>
+                <div class="page-title" style="margin-bottom: 20px;">🎙️ Audio Feed (G7E)</div>
+                
+                <?php if (count($mesures) === 0): ?>
+                    <div style="padding: 40px; text-align: center; color: #94a3b8; background: white; border-radius: 16px; border: 1px solid #e2e8f0;">
+                        Aucun enregistrement audio disponible pour le moment.
+                    </div>
+                <?php else: ?>
+                    <div class="kpi-card">
+                        <table style="width: 100%; border-collapse: collapse;">
                             <tr>
-                                <td style="color: #64748b; font-size: 0.9em;">
-                                    <?= date('d/m/Y à H:i', strtotime($m['uploadedAt'])) ?>
-                                </td>
-                                
-                                <td>
-                                    <strong style="color: #0f172a; word-break: break-all;">
-                                        <?= htmlspecialchars($m['filename']) ?>
-                                    </strong>
-                                </td>
-                                
-                                <td>
-                                    <?php if (!empty($m['duration'])): ?>
-                                        <span style="background: #e0f2fe; color: #2563eb; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.85em;">
-                                            <?= htmlspecialchars($m['duration']) ?> sec
-                                        </span>
-                                    <?php else: ?>
-                                        <span style="color: #94a3b8; font-size: 0.85em;">--</span>
-                                    <?php endif; ?>
-                                </td>
-                                
-                                <td style="color: #64748b; font-size: 0.9em; font-weight: 600;">
-                                    <?= $m['fileSize'] ? round($m['fileSize'] / (1024 * 1024), 2) . " MB" : "0 MB" ?>
-                                </td>
-                                
-                                <td>
-                                    <audio controls preload="none" style="height: 40px; width: 250px; outline: none;">
-                                        <source 
-                                            src="https://joinproject.vercel.app/api/audio/stream?bucket=<?= urlencode($m['minioBucket']) ?>&path=<?= urlencode($m['minioPath']) ?>" 
-                                            type="audio/wav">
-                                        Votre navigateur ne supporte pas l'audio.
-                                    </audio>
-                                </td>
+                                <th>Date d'upload</th>
+                                <th>Fichier Audio</th>
+                                <th>Durée</th>
+                                <th>Taille</th>
+                                <th>Lecture</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </table>
-                </div>
+                            <?php foreach ($mesures as $m): ?>
+                                <tr>
+                                    <td style="color: #64748b; font-size: 0.9em;">
+                                        <?= date('d/m/Y à H:i', strtotime($m['uploadedAt'])) ?>
+                                    </td>
+                                    
+                                    <td>
+                                        <strong style="color: #0f172a; word-break: break-all;">
+                                            <?= htmlspecialchars($m['filename']) ?>
+                                        </strong>
+                                    </td>
+                                    
+                                    <td>
+                                        <?php if (!empty($m['duration'])): ?>
+                                            <span style="background: #e0f2fe; color: #2563eb; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.85em;">
+                                                <?= htmlspecialchars($m['duration']) ?> sec
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #94a3b8; font-size: 0.85em;">--</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td style="color: #64748b; font-size: 0.9em; font-weight: 600;">
+                                        <?= $m['fileSize'] ? round($m['fileSize'] / (1024 * 1024), 2) . " MB" : "0 MB" ?>
+                                    </td>
+                                    
+                                    <td>
+                                        <audio controls preload="none" style="height: 40px; width: 250px; outline: none;">
+                                            <source 
+                                                src="https://joinproject.vercel.app/api/audio/stream?bucket=<?= urlencode($m['minioBucket']) ?>&path=<?= urlencode($m['minioPath']) ?>" 
+                                                type="audio/wav">
+                                            Votre navigateur ne supporte pas l'audio.
+                                        </audio>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </table>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
-        <?php endif; ?>
 
     </main>
 </div>
