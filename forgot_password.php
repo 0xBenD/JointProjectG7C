@@ -43,11 +43,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->Password = 'muggek-veXfi2-gijkuw';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
+            $mail->CharSet = 'UTF-8'; // Important pour les accents
 
             $mail->setFrom('jointprojectg7@alwaysdata.net', 'Hangar G7 Support');
             $mail->addAddress($email);
+            
             $mail->Subject = 'Réinitialisation de votre mot de passe';
-            $mail->Body = "Cliquez sur ce lien pour réinitialiser : https://jointprojectg7.alwaysdata.net/reset_password.php?token=$token";
+            
+            // --- ACTIVATION DU FORMAT HTML ---
+            $mail->isHTML(true);
+
+            $resetLink = "https://jointprojectg7.alwaysdata.net/reset_password.php?token=$token";
+
+            // --- CONSTRUCTION DU GABARIT HTML ---
+            $htmlContent = "
+            <div style='font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; padding: 30px 10px; margin: 0;'>
+                <div style='max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>
+                    
+                    <div style='background-color: #2563eb; padding: 25px; text-align: center;'>
+                        <h1 style='color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px;'>🔐 Hangar G7</h1>
+                    </div>
+                    
+                    <div style='padding: 30px; color: #0f172a;'>
+                        <h2 style='margin-top: 0; color: #1e293b; font-size: 18px;'>Réinitialisation de mot de passe</h2>
+                        <p style='font-size: 15px; line-height: 1.6; color: #475569;'>
+                            Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte sur l'infrastructure du <strong>Hangar G7</strong>.
+                        </p>
+                        
+                        <p style='font-size: 15px; line-height: 1.6; color: #475569;'>
+                            Cliquez sur le bouton ci-dessous pour configurer un nouveau mot de passe. Ce lien sécurisé est valide pendant <strong>1 heure</strong>.
+                        </p>
+                        
+                        <div style='text-align: center; margin-top: 35px; margin-bottom: 30px;'>
+                            <a href='$resetLink' style='display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; font-size: 16px;'>Réinitialiser mon mot de passe</a>
+                        </div>
+                        
+                        <div style='background-color: #f1f5f9; border-left: 4px solid #94a3b8; padding: 15px 20px; border-radius: 0 6px 6px 0;'>
+                            <p style='margin: 0; color: #475569; font-size: 13.5px; line-height: 1.5;'>
+                                <strong>Vous n'avez pas fait cette demande ?</strong><br>
+                                Vous pouvez ignorer cet e-mail en toute sécurité. Votre mot de passe actuel restera actif et votre compte est sécurisé.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style='background-color: #f1f5f9; padding: 15px; text-align: center; border-top: 1px solid #e2e8f0;'>
+                        <p style='margin: 0; font-size: 12px; color: #64748b;'>
+                            Ceci est un message automatisé du système Hangar G7.<br>
+                            Merci de ne pas y répondre.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+            ";
+
+            $mail->Body = $htmlContent;
+            
+            // --- VERSION TEXTE BRUT ---
+            $mail->AltBody = "Hangar G7 : Réinitialisation de votre mot de passe\n\n" .
+                             "Nous avons reçu une demande pour réinitialiser votre mot de passe.\n\n" .
+                             "Veuillez copier et coller le lien suivant dans votre navigateur (valide 1 heure) :\n" .
+                             $resetLink . "\n\n" .
+                             "Si vous n'êtes pas à l'origine de cette demande, ignorez simplement ce message.";
 
             if($mail->send()) {
                 $message = "Un email de réinitialisation a été envoyé à votre adresse.";
