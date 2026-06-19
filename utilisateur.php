@@ -51,16 +51,6 @@ try {
         $stmt = $pdo->query("SELECT * FROM event_notification_log ORDER BY sent_at DESC LIMIT 30");
         $home_logs = $stmt->fetchAll();
 
-        if (!empty($all_g7c)) {
-            foreach ($all_g7c as $m) {
-                if (floatval($m['distance_cm']) <= 10) {
-                    $home_logs[] = ['subject_line' => '🚨 OBSTACLE AVANT (' . $m['distance_cm'] . ' cm)', 'sent_at' => $m['date_enregistrement']];
-                }
-                if (isset($m['radiation_usv']) && floatval($m['radiation_usv']) >= 400.0) {
-                    $home_logs[] = ['subject_line' => '☢️ DANGER DE MORT RADIOLOGIQUE (' . $m['radiation_usv'] . ' mSv/h)', 'sent_at' => $m['date_enregistrement']];
-                }
-            }
-        }
         usort($home_logs, function($a, $b) { return strtotime($b['sent_at']) - strtotime($a['sent_at']); });
         $home_logs = array_slice($home_logs, 0, 15);
     }
@@ -92,34 +82,19 @@ try {
     $db_error = "Erreur BDD : " . $e->getMessage();
 }
 
-// L'inclusion du header natif
 include 'header.php';
 ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    /* =======================================================
-       CORRECTION DE LA PAGE BLANCHE 
-       ======================================================= */
-    /* On masque silencieusement l'ancien header et footer */
     header, footer { display: none !important; }
-    /* On retire les restrictions de l'ancien conteneur */
     .container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
 
     body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
     
-    /* Notre application devient une interface plein écran qui recouvre tout */
-    .app-wrapper { 
-        position: fixed; 
-        top: 0; left: 0; right: 0; bottom: 0; 
-        z-index: 9999; 
-        display: flex; 
-        background-color: #f8fafc;
-        overflow: hidden; 
-    }
+    .app-wrapper { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; background-color: #f8fafc; overflow: hidden; }
     
-    /* SIDEBAR (Navigation Latérale) */
     .sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; flex-shrink: 0; }
     .sidebar-header { padding: 25px 20px; display: flex; align-items: center; gap: 15px; }
     .sidebar-header .bot-icon { font-size: 2.2em; background: #f1f5f9; padding: 10px; border-radius: 12px; }
@@ -137,15 +112,12 @@ include 'header.php';
     .sidebar-footer { padding: 20px; border-top: 1px solid #e2e8f0; }
     .btn-logout { color: #ef4444; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
 
-    /* ZONE DE CONTENU PRINCIPALE */
     .main-area { flex: 1; overflow-y: auto; background-color: #f8fafc; padding: 30px; position: relative; }
-    .page-title { font-size: 1.8em; font-weight: 800; color: #0f172a; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+    .page-title { font-size: 1.8em; font-weight: 800; color: #0f172a; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     
-    /* ALERTE FLASH */
     .flash-alert-banner { background: #ef4444; color: white; padding: 15px; border-radius: 12px; margin-bottom: 25px; text-align: center; font-weight: 900; font-size: 1.1em; letter-spacing: 1px; animation: pulseRed 1.5s infinite; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); display: none; }
     @keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-    /* LE NOUVEAU RADAR (Barres de progression) */
     .telemetry-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; gap: 50px; margin-bottom: 25px; }
     .tel-side { text-align: center; width: 220px; }
     .tel-label { font-size: 0.8em; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
@@ -160,7 +132,6 @@ include 'header.php';
     .tel-robot-icon { font-size: 4.5em; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
     .tel-robot-label { font-weight: 800; color: #475569; letter-spacing: 2px; font-size: 0.85em; }
 
-    /* GRILLES & CARTES KPI */
     .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 25px; }
     @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } .telemetry-card { flex-direction: column; gap: 20px; } .sidebar { width: 200px; } }
     
@@ -168,23 +139,19 @@ include 'header.php';
     .kpi-title { font-size: 0.75em; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
     .kpi-value { font-size: 1.8em; font-weight: 900; color: #0f172a; }
     
-    /* SLIDER & MAP */
     .slider-box { background: white; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     .map-container { height: 400px; width: 100%; border-radius: 12px; z-index: 1; }
     
-    /* LOGBOOK */
     .log-container { max-height: 350px; overflow-y: auto; padding-right: 10px; }
     .log-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
     .log-item:last-child { border-bottom: none; }
 
-    /* LIVE TOGGLE BTN */
     .live-btn { background: white; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 20px; font-size: 0.8em; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; color: #475569; }
     .live-btn.on { border-color: #fca5a5; background: #fef2f2; color: #dc2626; }
     .live-btn.on .dot { background: #dc2626; animation: pulseDot 1.5s infinite; }
     .live-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; display: inline-block; }
     @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0; } }
 
-    /* TABLE */
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     th, td { padding: 15px; border-bottom: 1px solid #f1f5f9; text-align: left; }
     th { background: #f8fafc; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.8em; letter-spacing: 1px; }
@@ -194,13 +161,13 @@ include 'header.php';
 
 <div class="app-wrapper">
     <aside class="sidebar">
-        <div class="sidebar-header">
+        <a href="utilisateur.php?show=home" class="sidebar-header" style="text-decoration: none; color: inherit;">
             <div class="bot-icon">🤖</div>
             <div>
-                <div class="title">Rover Control</div>
+                <div class="title">Hangar G7</div>
                 <div class="subtitle"><?= htmlspecialchars($_SESSION['username'] ?? 'Opérateur') ?></div>
             </div>
-        </div>
+        </a>
         
         <nav class="sidebar-nav">
             <div class="nav-section">
@@ -242,6 +209,15 @@ include 'header.php';
                 Rover Telemetry Hub
                 <button id="live-toggle" class="live-btn on" onclick="toggleLiveMode()">
                     <span class="dot"></span> <span id="live-text">Live Sync</span>
+                </button>
+            </div>
+
+            <div id="kill-switch-container" style="background: white; border: 1px solid #e2e8f0; padding: 25px; border-radius: 16px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <h3 style="margin-top: 0; color: #0f172a; font-size: 1.1em; letter-spacing: 1px;">SÉCURITÉ ROBOT (KILL SWITCH)</h3>
+                <p id="ks-status-text" style="font-weight: bold; color: #10b981; font-size: 0.9em; text-transform: uppercase; margin-bottom: 20px;">Statut : NORMAL (Opérationnel)</p>
+                
+                <button id="btn-killswitch" onclick="toggleKillSwitch()" style="background: #ef4444; color: white; border: none; padding: 15px 50px; font-size: 1.1em; font-weight: 900; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
+                    🛑 ENGAGER KILL SWITCH
                 </button>
             </div>
 
@@ -333,7 +309,60 @@ include 'header.php';
             </div>
 
             <script>
-                // --- LOGIQUE METIER JS (Live, Map, Slider, Bars) ---
+                // ==========================================
+                // LOGIQUE KILL SWITCH
+                // ==========================================
+                let currentKsState = 0;
+
+                fetch('api_killswitch.php')
+                    .then(r => r.json())
+                    .then(data => updateKsUI(data.etat))
+                    .catch(e => console.error("Erreur chargement Kill Switch", e));
+
+                function toggleKillSwitch() {
+                    let newState = currentKsState === 1 ? 0 : 1; 
+                    
+                    if(newState === 0 && !confirm("Voulez-vous vraiment redémarrer le robot (Désactiver le Kill Switch) ?")) return;
+
+                    fetch('api_killswitch.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ etat: newState })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if(data.success) updateKsUI(data.etat);
+                    });
+                }
+
+                function updateKsUI(state) {
+                    currentKsState = state;
+                    const btn = document.getElementById('btn-killswitch');
+                    const text = document.getElementById('ks-status-text');
+                    const container = document.getElementById('kill-switch-container');
+
+                    if (state === 1) {
+                        btn.innerHTML = "🔄 RÉARMER LE ROBOT";
+                        btn.style.background = "#10b981"; 
+                        btn.style.boxShadow = "0 4px 15px rgba(16, 185, 129, 0.4)";
+                        text.innerHTML = "🚨 STATUT : KILL SWITCH ENGAGÉ (ROBOT ARRÊTÉ)";
+                        text.style.color = "#ef4444";
+                        container.style.borderColor = "#ef4444";
+                        container.style.borderWidth = "2px";
+                    } else {
+                        btn.innerHTML = "🛑 ENGAGER KILL SWITCH";
+                        btn.style.background = "#ef4444";
+                        btn.style.boxShadow = "0 4px 15px rgba(239, 68, 68, 0.4)";
+                        text.innerHTML = "STATUT : NORMAL (Opérationnel)";
+                        text.style.color = "#10b981";
+                        container.style.borderColor = "#e2e8f0";
+                        container.style.borderWidth = "1px";
+                    }
+                }
+
+                // ==========================================
+                // LOGIQUE TÉLÉMÉTRIE (Live, Map, Slider)
+                // ==========================================
                 let isLiveMode = localStorage.getItem('rover_live_mode') !== 'false';
                 const liveBtn = document.getElementById('live-toggle');
                 const liveText = document.getElementById('live-text');
@@ -400,12 +429,10 @@ include 'header.php';
                     let radColor = rad >= 400 ? '#ef4444' : (rad > 50 ? '#f59e0b' : '#10b981');
                     document.getElementById('kpi-rad').innerHTML = `<span style="color:${radColor}">${rad}</span> <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span>`;
 
-                    // GESTION DES BARRES (Front/Rear)
                     let distAvant = parseFloat(selectedRecord.distance_cm);
                     let closestB = getClosestBDistance(selectedRecord.date_enregistrement);
                     let distArriere = parseFloat(closestB);
 
-                    // Avant
                     let pctAvant = Math.min(100, (distAvant / 150) * 100); 
                     document.getElementById('val-front').innerText = distAvant + ' cm';
                     if (distAvant <= 10) {
@@ -418,7 +445,6 @@ include 'header.php';
                         document.getElementById('status-front').innerText = "✅ CLEAR";
                     }
 
-                    // Arrière
                     document.getElementById('val-rear').innerText = isNaN(distArriere) ? '--' : distArriere + ' cm';
                     if (isNaN(distArriere)) {
                         document.getElementById('bar-rear').style.cssText = `width: 0%;`;
@@ -437,7 +463,6 @@ include 'header.php';
                         }
                     }
 
-                    // GESTION FLASH ALERT GLOBALE
                     let alertBanner = document.getElementById('flash-alert-banner');
                     let msgs = [];
                     if(distAvant <= 10) msgs.push(`COLLISION IMMINENTE (${distAvant} cm)`);
@@ -449,7 +474,6 @@ include 'header.php';
                         alertBanner.style.display = 'none';
                     }
 
-                    // CARTE
                     if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
                     let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🤖</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
                     currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], {icon: customIcon}).addTo(mapHome);
