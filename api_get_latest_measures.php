@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
+    // --- NOUVEAU : VERIFICATION DES ALERTES E-MAIL ---
+    require_once 'check_alertes.php';
+    verifierEtEnvoyerAlertes($pdo);
+    // -------------------------------------------------
+
     $data = [];
 
     // Dernière mesure G7C (Avant, GPS, Radiation)
