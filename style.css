@@ -1,6 +1,3 @@
-/* =========================================================================
-   VARIABLES ET CONFIGURATION GLOBALE
-   ========================================================================= */
 :root {
     --bg-main: #f8fafc;
     --surface: #ffffff;
@@ -9,357 +6,309 @@
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
     --success: #10b981;
-    --warning: #f59e0b;
     --danger: #ef4444;
     --border: #e2e8f0;
     --radius: 12px;
     --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
-/* L'astuce Flexbox pour coller le header en haut et le footer en bas 
-   sur TOUTES les pages classiques (Index, Connexion, Forgot, etc.)
-*/
-html, body {
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
     margin: 0;
     padding: 0;
-    height: 100%;
-}
-
-body {
+    line-height: 1.5;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    box-sizing: border-box;
 }
 
-/* =========================================================================
-   HEADER ET NAV (COLLÉS EN HAUT)
-   ========================================================================= */
+/* --- HEADER RESPONSIVE --- */
 header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
     background-color: var(--surface);
     border-bottom: 1px solid var(--border);
     padding: 1rem 5%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    flex-wrap: wrap;
+    /* Permet de passer à la ligne sur très petit écran */
+    gap: 1rem;
 }
 
 header h2 {
     margin: 0;
-    font-size: 1.4em;
-    font-weight: 800;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
 }
 
 nav {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 nav a {
     color: var(--text-muted);
     text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95em;
+    font-weight: 500;
+    font-size: 0.925rem;
     transition: color 0.2s;
 }
 
-nav a:hover {
-    color: var(--text-main);
+nav a:hover,
+nav a.active {
+    color: var(--primary);
 }
 
-/* Le bouton d'action dans la navbar */
-nav a.btn {
-    background-color: var(--primary);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    transition: background-color 0.2s;
-}
-nav a.btn:hover {
-    background-color: var(--primary-hover);
-}
-
-/* =========================================================================
-   CONTENEUR CENTRAL (PREND TOUT L'ESPACE DISPONIBLE)
-   ========================================================================= */
+/* --- LAYOUT --- */
 .container {
-    flex: 1; /* Permet au contenu de grandir et de repousser le footer */
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 20px;
+    max-width: 1280px;
+    margin: 1.5rem auto;
+    padding: 0 1rem;
     box-sizing: border-box;
+    flex: 1;
 }
 
-/* =========================================================================
-   FOOTER (COLLÉ EN BAS)
-   ========================================================================= */
-footer {
-    margin-top: auto; /* Pousse le footer tout en bas si le contenu est court */
-    text-align: center;
-    padding: 20px;
-    background-color: #e9ecef;
-    color: var(--text-muted);
-    font-size: 0.9em;
-    border-top: 1px solid var(--border);
-}
-
-footer p {
-    margin: 0;
-}
-
-/* =========================================================================
-   FONDS DES ALERTES FLASH ET LOGS
-   ========================================================================= */
-.flash-alert { 
-    background: #dc2626; 
-    color: white; 
-    padding: 15px; 
-    text-align: center; 
-    font-weight: 900; 
-    font-size: 1.2em; 
-    text-transform: uppercase; 
-    border-bottom: 2px solid #7f1d1d; 
-    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.6); 
-    animation: flash 0.8s infinite; 
-}
-@keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-.flash-alert-banner {
-    background: #ef4444;
-    color: white;
-    padding: 15px;
-    border-radius: var(--radius);
-    margin-bottom: 25px;
-    text-align: center;
-    font-weight: 900;
-    font-size: 1.1em;
-    letter-spacing: 1px;
-    animation: pulseRed 1.5s infinite;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-    display: none;
-}
-@keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
-
-/* =========================================================================
-   STRUCTURE DASHBOARD APPLICATION LIVE (DÉCOUPLÉE & FIXÉE)
-   ========================================================================= */
-.app-wrapper {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 9999;
-    display: flex;
-    background-color: var(--bg-main);
-    overflow: hidden;
-}
-
-.sidebar {
-    width: 260px;
+.card {
     background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-}
-
-.sidebar-header {
-    padding: 25px 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.sidebar-header .bot-icon {
-    font-size: 2.2em;
-    background: #f1f5f9;
-    padding: 10px;
+    border: 1px solid var(--border);
     border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
 }
 
+/* --- ONGLETS ADAPTATIFS --- */
+.group-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    overflow-x: auto;
+    /* Scroll horizontal fluide si les onglets dépassent sur mobile */
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+
+.group-tabs::-webkit-scrollbar {
+    display: none;
+    /* Cache la barre de défilement laide sur mobile */
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+    background: var(--border);
+}
+
+.tab-btn.active {
+    color: white;
+    background: var(--primary);
+}
+
+/* --- FORMULAIRES & BOUTONS --- */
+.btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.625rem 1.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.2s;
+    text-align: center;
+}
+
+.btn:hover {
+    background: var(--primary-hover);
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+    background: var(--bg-main);
+}
+
+/* --- ZONE CONNEXION / INSCRIPTION SÉPARÉE --- */
+.auth-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 2.5rem;
+}
+
+/* --- TABLEAUX RESPONSIVES (ANTI-DEBORDEMENT) --- */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    /* Ajoute un scroll horizontal uniquement au tableau si l'écran est trop petit */
+    -webkit-overflow-scrolling: touch;
+    margin-top: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+th,
+td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+    /* Évite que le texte se coupe bizarrement en deux lignes */
+}
+
+th {
+    background: var(--bg-main);
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+tr:hover {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* --- CARTE ET SLIDER --- */
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    z-index: 1;
+    /* Évite que la carte passe au-dessus du header */
+}
+
+.slider-container {
+    background: var(--bg-main);
+    padding: 1.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.slider-container input[type="range"] {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.slider-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* =========================================================================
+   MEDIA QUERIES : AJUSTEMENTS SPÉCIFIQUES POUR ÉCRANS MOBILES (<= 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem;
+    }
+
+    nav {
+        width: 100%;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    nav a {
+        margin-left: 0;
+        font-size: 0.85rem;
+    }
+
+    .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+    }
+
+    .card {
+        padding: 1rem;
+        border-radius: 8px;
+    }
+
+    #map {
+        height: 300px;
+        /* Un peu moins haut sur smartphone pour garder du confort */
+    }
+
+    .slider-meta {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        text-align: center;
+    }
+}
+
+/* Sidebar Header Correction */
 .sidebar-header .title {
     font-weight: 900;
     font-size: 1.1em;
-    color: var(--text-main);
+    color: #0f172a;
     margin-bottom: 4px;
+    /* Empêche le débordement */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    max-width: 140px; /* Ajuste selon la largeur de ta sidebar */
 }
 
-.sidebar-header .subtitle {
-    font-size: 0.85em;
-    color: var(--success);
-    font-weight: 600;
+/* Style des formulaires (si tu veux un look propre) */
+input[type="text"], input[type="email"], input[type="password"] {
+    border: 1px solid #e2e8f0;
+    outline: none;
 }
-
-.sidebar-nav {
-    padding: 10px 0;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.nav-section {
-    margin-bottom: 25px;
-}
-
-.nav-title {
-    font-size: 0.7em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    font-weight: 800;
-    padding: 0 20px;
-    margin-bottom: 10px;
-    letter-spacing: 1px;
-}
-
-.nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 20px 12px 16px;
-    color: #475569;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95em;
-    transition: 0.2s;
-    border-left: 4px solid transparent;
-}
-
-.nav-item:hover {
-    background: #f8fafc;
-    color: var(--text-main);
-}
-
-.nav-item.active {
-    background: #eff6ff;
-    color: var(--primary);
-    border-left-color: var(--primary);
-}
-
-.sidebar-footer {
-    padding: 20px;
-    border-top: 1px solid var(--border);
-}
-
-.btn-logout {
-    color: var(--danger);
-    font-weight: 600;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9em;
-}
-
-.main-area {
-    flex: 1;
-    overflow-y: auto;
-    background-color: var(--bg-main);
-    padding: 30px;
-    position: relative;
-}
-
-.page-title {
-    font-size: 1.8em;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 25px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* =========================================================================
-   COMPOSANTS DE COMMANDE (RADAR & BLOCS LIVE)
-   ========================================================================= */
-.live-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 0.8em;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: 0.2s;
-    color: #475569;
-}
-.live-btn.on { border-color: #fca5a5; background: #fef2f2; color: #dc2626; }
-.live-btn.on .dot { background: #dc2626; animation: pulseDot 1.5s infinite; }
-.live-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); display: inline-block; }
-@keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0; } }
-
-.telemetry-card {
-    background: var(--surface);
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 50px;
-    margin-bottom: 25px;
-}
-
-.tel-side { text-align: center; width: 220px; }
-.tel-label { font-size: 0.8em; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
-.tel-bar-bg { background: #f1f5f9; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 15px; display: flex; }
-.tel-bar-fill { height: 100%; border-radius: 5px; transition: width 0.3s ease, background-color 0.3s ease; }
-.tel-value { font-size: 2.2em; font-weight: 900; color: var(--text-main); margin-bottom: 10px; }
-.tel-status { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 0.75em; font-weight: 800; letter-spacing: 1px; }
-
-.status-danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
-.status-safe { background: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; }
-
-.tel-robot { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.tel-robot-icon { font-size: 4.5em; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
-.tel-robot-label { font-weight: 800; color: #475569; letter-spacing: 2px; font-size: 0.85em; }
-
-/* =========================================================================
-   TABLEAUX, KPI ET FORMULAIRES DE COMPTE
-   ========================================================================= */
-.dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 25px; }
-.chart-grid-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 20px; margin-bottom: 30px; }
-.kpi-card { background: var(--surface); border-radius: 16px; padding: 25px; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.kpi-card-flex-container { display: flex; gap: 20px; margin-bottom: 20px; }
-.kpi-card-flex-item { flex: 1; }
-.kpi-title { font-size: 0.75em; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
-.kpi-value { font-size: 1.8em; font-weight: 900; color: var(--text-main); }
-.slider-box { background: var(--surface); border-radius: 16px; padding: 20px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: var(--shadow); }
-.slider-input-element { width: 100%; margin-top: 10px; }
-.map-container { height: 400px; width: 100%; border-radius: 12px; z-index: 1; }
-.chart-container { background: var(--surface); padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: var(--shadow); }
-.log-container { max-height: 350px; overflow-y: auto; padding-right: 10px; }
-.log-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; }
-
-.form-section-group { margin-bottom: 20px; }
-.form-label-style { display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-main); font-size: 0.9em; }
-.form-input-style { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border); box-sizing: border-box; font-size: 1rem; background-color: #f8fafc; transition: border-color 0.2s; }
-.form-input-style:focus { border-color: var(--primary); background-color: var(--surface); outline: none; }
-.form-submit-button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background-color 0.2s; }
-.form-submit-button:hover { background-color: var(--primary-hover); }
-
-.table-responsive { overflow-x: auto; }
-.row-mortal { background-color: #fef2f2 !important; border-left: 4px solid var(--danger); color: #7f1d1d; }
-.row-danger { background-color: rgba(239, 68, 68, 0.11) !important; border-left: 4px solid var(--danger); }
-.row-warning { background-color: #fffbeb !important; border-left: 4px solid var(--warning); color: #92400e; }
-
-/* Adaptabilité responsive mobile */
-@media (max-width: 1024px) {
-    .app-wrapper { flex-direction: column; }
-    .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
-    .dashboard-grid { grid-template-columns: 1fr; }
-    .telemetry-card { flex-direction: column; gap: 20px; }
-}
+input:focus { border-color: #2563eb; }
