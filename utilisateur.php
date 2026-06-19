@@ -488,16 +488,77 @@ include 'header.php';
                 
                 if (rawDataHome.length > 0) { updateHomeDash(rawDataHome.length - 1); }
 
+                // ==========================================
+                // RAFRAÎCHISSEMENT TEMPS RÉEL (CORRIGÉ)
+                // ==========================================
                 setInterval(() => {
                     if (isLiveMode) {
-                        fetch('api_get_latest_measures.php').then(res => res.json()).then(data => {
+                        fetch('api_get_latest_measures.php')
+                        .then(res => res.json())
+                        .then(data => {
+                            let hasNewData = false;
+
+                            // 1. Mise à jour de l'historique G7C (Avant)
                             if (data.g7c && rawDataHome.length > 0 && data.g7c.date_enregistrement !== rawDataHome[0].date_enregistrement) {
                                 rawDataHome.unshift(data.g7c);
-                                if(data.g7b) rawDataBHome.unshift(data.g7b);
-                                hSlider.max = rawDataHome.length - 1; hSlider.value = rawDataHome.length - 1;
-                                updateHomeDash(hSlider.value);
+                                hasNewData = true;
                             }
-                        }).catch(e => console.log(e));
+                            
+                            // 2. Mise à jour de l'historique G7B (Arrière)
+                            if (data.g7b && rawDataBHome.length > 0 && data.g7b.date_evenement !== rawDataBHome[0].date_evenement) {
+                                rawDataBHome.unshift(data.g7b);
+                                hasNewData = true;
+                            }
+
+                            // 3. MISE À JOUR DIRECTE DE L'INTERFACE (Indépendante)
+                            
+                            // --> Affichage direct du radar ARRIÈRE (G7B)
+                            if (data.g7b) {
+                                // Nettoyage si la donnée contient ">" ou "<"
+                                let distRaw = data.g7b.distance_cm.toString().replace('>', '').replace('<', '');
+                                let distArriere = parseFloat(distRaw);
+                                
+                                document.getElementById('val-rear').innerText = isNaN(distArriere) ? '--' : distArriere + ' cm';
+                                
+                                if (!isNaN(distArriere)) {
+                                    let pctArriere = Math.min(100, (distArriere / 150) * 100);
+                                    if (distArriere <= 10) {
+                                        document.getElementById('bar-rear').style.cssText = `width: ${pctArriere}%; background: #ef4444;`;
+                                        document.getElementById('status-rear').className = "tel-status status-danger";
+                                        document.getElementById('status-rear').innerText = "🚨 DANGER";
+                                    } else {
+                                        document.getElementById('bar-rear').style.cssText = `width: ${pctArriere}%; background: #10b981;`;
+                                        document.getElementById('status-rear').className = "tel-status status-safe";
+                                        document.getElementById('status-rear').innerText = "✅ CLEAR";
+                                    }
+                                }
+                            }
+
+                            // --> Affichage direct du radar AVANT (G7C)
+                            if (data.g7c) {
+                                let distAvant = parseFloat(data.g7c.distance_cm);
+                                let pctAvant = Math.min(100, (distAvant / 150) * 100);
+                                
+                                document.getElementById('val-front').innerText = distAvant + ' cm';
+                                
+                                if (distAvant <= 10) {
+                                    document.getElementById('bar-front').style.cssText = `width: ${pctAvant}%; background: #ef4444;`;
+                                    document.getElementById('status-front').className = "tel-status status-danger";
+                                    document.getElementById('status-front').innerText = "🚨 DANGER";
+                                } else {
+                                    document.getElementById('bar-front').style.cssText = `width: ${pctAvant}%; background: #10b981;`;
+                                    document.getElementById('status-front').className = "tel-status status-safe";
+                                    document.getElementById('status-front').innerText = "✅ CLEAR";
+                                }
+                            }
+
+                            // On décale le slider temporel seulement si une nouveauté est détectée
+                            if (hasNewData) {
+                                hSlider.max = rawDataHome.length - 1; 
+                                hSlider.value = rawDataHome.length - 1;
+                            }
+
+                        }).catch(e => console.log("Erreur API Live:", e));
                     }
                 }, 3000);
             </script>
