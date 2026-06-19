@@ -194,12 +194,12 @@ include 'header.php';
 
 <div class="app-wrapper">
     <aside class="sidebar">
-        <a href="utilisateur.php?show=home" class="sidebar-header" style="text-decoration: none; color: inherit;">
+        <div class="sidebar-header">
             <div class="bot-icon">🤖</div>
             <div>
-                <div class="title">Hangar G7</div> <div class="subtitle"><?= htmlspecialchars($_SESSION['username'] ?? 'Opérateur') ?></div>
+                <div class="title">Rover Control</div>
+                <div class="subtitle"><?= htmlspecialchars($_SESSION['username'] ?? 'Opérateur') ?></div>
             </div>
-        </a>
         </div>
         
         <nav class="sidebar-nav">
