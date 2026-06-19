@@ -404,24 +404,44 @@ include 'header.php';
                     }
                 });
 
+                // ==========================================
+                // RECHERCHE DU RADAR ARRIÈRE (AVEC FALLBACK)
+                // ==========================================
                 function getClosestBDistance(targetDateStr) {
                     if (!rawDataBHome || rawDataBHome.length === 0) return '--';
+                    
                     const targetTime = new Date(targetDateStr.replace(' ', 'T')).getTime();
-                    let closestVal = '--';
+                    
+                    // Fallback de sécurité : on stocke la toute dernière valeur connue par défaut
+                    let closestVal = rawDataBHome[0].distance_cm; 
                     let minDiff = Infinity;
+                    
                     for (let i = 0; i < rawDataBHome.length; i++) {
                         const bTime = new Date(rawDataBHome[i].date_evenement.replace(' ', 'T')).getTime();
                         const diff = Math.abs(bTime - targetTime);
-                        if (diff < minDiff) { minDiff = diff; closestVal = rawDataBHome[i].distance_cm; }
+                        if (diff < minDiff) { 
+                            minDiff = diff; 
+                            closestVal = rawDataBHome[i].distance_cm; 
+                        }
                     }
-                    if (minDiff > 10000) return '--';
+                    
+                    // Si le décalage de temps est supérieur à 10 secondes (capteur déconnecté ou asynchrone)
+                    // on retourne quoiqu'il arrive la dernière valeur enregistrée dans la BDD
+                    if (minDiff > 10000) { 
+                        return rawDataBHome[0].distance_cm; 
+                    }
+                    
                     return closestVal;
                 }
 
+                // ==========================================
+                // MISE À JOUR GLOBALE DE L'INTERFACE D'ACCUEIL
+                // ==========================================
                 function updateHomeDash(index) {
                     const selectedRecord = rawDataHome[(rawDataHome.length - 1) - index]; 
                     if (!selectedRecord) return;
                     
+                    // 1. KPIs Simples (Date, Altitude, Radiation)
                     document.getElementById('home-slider-date').innerText = selectedRecord.date_enregistrement;
                     document.getElementById('kpi-alt').innerHTML = selectedRecord.altitude + ' <span style="font-size: 0.5em; color: #94a3b8;">m</span>';
                     
@@ -429,11 +449,10 @@ include 'header.php';
                     let radColor = rad >= 400 ? '#ef4444' : (rad > 50 ? '#f59e0b' : '#10b981');
                     document.getElementById('kpi-rad').innerHTML = `<span style="color:${radColor}">${rad}</span> <span style="font-size: 0.5em; color: #94a3b8;">mSv/h</span>`;
 
+                    // 2. RADAR AVANT (G7C)
                     let distAvant = parseFloat(selectedRecord.distance_cm);
-                    let closestB = getClosestBDistance(selectedRecord.date_enregistrement);
-                    let distArriere = parseFloat(closestB);
-
                     let pctAvant = Math.min(100, (distAvant / 150) * 100); 
+                    
                     document.getElementById('val-front').innerText = distAvant + ' cm';
                     if (distAvant <= 10) {
                         document.getElementById('bar-front').style.cssText = `width: ${pctAvant}%; background: #ef4444;`;
@@ -445,7 +464,15 @@ include 'header.php';
                         document.getElementById('status-front').innerText = "✅ CLEAR";
                     }
 
+                    // 3. RADAR ARRIÈRE (G7B)
+                    let closestB = getClosestBDistance(selectedRecord.date_enregistrement);
+                    
+                    // Nettoyage strict ("<" ou ">" supprimés pour éviter les bugs mathématiques)
+                    let distRaw = closestB.toString().replace('>', '').replace('<', '');
+                    let distArriere = parseFloat(distRaw);
+
                     document.getElementById('val-rear').innerText = isNaN(distArriere) ? '--' : distArriere + ' cm';
+                    
                     if (isNaN(distArriere)) {
                         document.getElementById('bar-rear').style.cssText = `width: 0%;`;
                         document.getElementById('status-rear').className = "tel-status";
@@ -463,21 +490,39 @@ include 'header.php';
                         }
                     }
 
+                    // 4. BANNIÈRE FLASH D'ALERTE GLOBALE
                     let alertBanner = document.getElementById('flash-alert-banner');
                     let msgs = [];
-                    if(distAvant <= 10) msgs.push(`COLLISION IMMINENTE (${distAvant} cm)`);
-                    if(rad >= 400) msgs.push(`RADIATION MORTELLE (${rad} mSv/h)`);
-                    if(msgs.length > 0) {
+                    
+                    if (distAvant <= 10) msgs.push(`COLLISION AVANT IMMINENTE (${distAvant} cm)`);
+                    if (!isNaN(distArriere) && distArriere <= 10) msgs.push(`COLLISION ARRIÈRE IMMINENTE (${distArriere} cm)`);
+                    if (rad >= 400) msgs.push(`RADIATION MORTELLE (${rad} mSv/h)`);
+                    
+                    if (msgs.length > 0) {
                         alertBanner.style.display = 'block';
                         alertBanner.innerText = "⚠️ ALERTE CRITIQUE : " + msgs.join(" | ");
                     } else {
                         alertBanner.style.display = 'none';
                     }
 
-                    if (currentHomeMarker) { mapHome.removeLayer(currentHomeMarker); }
-                    let customIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='font-size:24px;'>🤖</div>", iconSize: [30, 30], iconAnchor: [15, 15] });
-                    currentHomeMarker = L.marker([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], {icon: customIcon}).addTo(mapHome);
-                    mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
+                    // 5. CARTE GPS ET POSITION DU ROBOT
+                    if (currentHomeMarker) { 
+                        mapHome.removeLayer(currentHomeMarker); 
+                    }
+                    
+                    if (selectedRecord.latitude && selectedRecord.longitude) {
+                        let customIcon = L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: "<div style='font-size:24px;'>🤖</div>", 
+                            iconSize: [30, 30], 
+                            iconAnchor: [15, 15] 
+                        });
+                        currentHomeMarker = L.marker(
+                            [parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)], 
+                            {icon: customIcon}
+                        ).addTo(mapHome);
+                        mapHome.panTo([parseFloat(selectedRecord.latitude), parseFloat(selectedRecord.longitude)]);
+                    }
                 }
                 
                 const hSlider = document.getElementById('home-time-slider');
