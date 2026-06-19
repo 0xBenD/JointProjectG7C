@@ -595,20 +595,62 @@ include 'header.php';
             <?php endif; ?>
 
         <?php elseif ($view_group === 'E'): ?>
-            <div class="page-title" style="margin-bottom: 20px;">Audio Feed (G7E)</div>
-            <div class="kpi-card">
-                <table>
-                    <tr><th>Upload Time</th><th>Filename</th><th>Playback</th><th>Size</th></tr>
-                    <?php foreach ($mesures as $m): ?>
-                        <tr>
-                            <td><?= date('d/m H:i', strtotime($m['uploadedAt'])) ?></td><td><strong><?= htmlspecialchars($m['filename']) ?></strong></td>
-                            <td><audio controls preload="none" style="height: 35px;"><source src="http://178.33.122.21:9000/<?= $m['minioBucket'] ?>/<?= $m['minioPath'] ?>" type="audio/wav"></audio></td>
-                            <td><?= $m['fileSize'] ? round($m['fileSize']/(1024*1024), 2) . " MB" : "0 MB" ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </table>
-            </div>
-        <?php endif; ?>
+                <div class="page-title" style="margin-bottom: 20px;">🎙️ Audio Feed (G7E)</div>
+                
+                <?php if (count($mesures) === 0): ?>
+                    <div style="padding: 40px; text-align: center; color: #94a3b8; background: white; border-radius: 16px; border: 1px solid #e2e8f0;">
+                        Aucun enregistrement audio disponible pour le moment.
+                    </div>
+                <?php else: ?>
+                    <div class="kpi-card">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <th>Date d'upload</th>
+                                <th>Fichier Audio</th>
+                                <th>Durée</th>
+                                <th>Taille</th>
+                                <th>Lecture</th>
+                            </tr>
+                            <?php foreach ($mesures as $m): ?>
+                                <tr>
+                                    <td style="color: #64748b; font-size: 0.9em;">
+                                        <?= date('d/m/Y à H:i', strtotime($m['uploadedAt'])) ?>
+                                    </td>
+                                    
+                                    <td>
+                                        <strong style="color: #0f172a; word-break: break-all;">
+                                            <?= htmlspecialchars($m['filename']) ?>
+                                        </strong>
+                                    </td>
+                                    
+                                    <td>
+                                        <?php if (!empty($m['duration'])): ?>
+                                            <span style="background: #e0f2fe; color: #2563eb; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.85em;">
+                                                <?= htmlspecialchars($m['duration']) ?> sec
+                                            </span>
+                                        <?php else: ?>
+                                            <span style="color: #94a3b8; font-size: 0.85em;">--</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td style="color: #64748b; font-size: 0.9em; font-weight: 600;">
+                                        <?= $m['fileSize'] ? round($m['fileSize'] / (1024 * 1024), 2) . " MB" : "0 MB" ?>
+                                    </td>
+                                    
+                                    <td>
+                                        <audio controls preload="none" style="height: 40px; width: 250px; outline: none;">
+                                            <source 
+                                                src="https://joinproject.vercel.app/api/audio/stream?bucket=<?= urlencode($m['minioBucket']) ?>&path=<?= urlencode($m['minioPath']) ?>" 
+                                                type="audio/wav">
+                                            Votre navigateur ne supporte pas l'audio.
+                                        </audio>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
 
     </main>
 </div>
